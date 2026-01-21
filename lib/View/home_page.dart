@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'post_page.dart';
 import 'package:plaro_3/View/taiken_list_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../ViewModel/setProfileProvider.dart';
@@ -721,22 +722,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () {
-                Navigator.pushNamed(context, '/create_post');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PostCreateScreen()),
+                );
               },
+              icon: const Icon(Icons.add),
+              label: const Text('Create Posts'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,
-                  vertical: 12,
+                  vertical: 16,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Create Post'),
             ),
           ],
         ),
