@@ -13,6 +13,13 @@ class UserProfile {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool? isVerified;
+  final int totalPoints;
+  final String rankLevel;
+  final double consistencyScore;
+  final double authenticityScore;
+  final double contributionScore;
+  final bool freelanceEligible;
+  final bool verifiedEducator;
 
   UserProfile({
     required this.user_id,
@@ -29,6 +36,13 @@ class UserProfile {
     this.createdAt,
     this.updatedAt,
     this.isVerified,
+    this.totalPoints = 0,
+    this.rankLevel = 'beginner',
+    this.consistencyScore = 0.5,
+    this.authenticityScore = 0.5,
+    this.contributionScore = 0.5,
+    this.freelanceEligible = false,
+    this.verifiedEducator = false,
   });
 
 
@@ -52,6 +66,14 @@ class UserProfile {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'])
           : null,
+      totalPoints: json['total_points'] as int? ?? 0,
+      rankLevel: json['rank_level'] as String? ?? 'beginner',
+      consistencyScore: (json['consistency_score'] as num?)?.toDouble() ?? 0.5,
+      authenticityScore: (json['authenticity_score'] as num?)?.toDouble() ?? 0.5,
+      contributionScore: (json['contribution_score'] as num?)?.toDouble() ?? 0.5,
+      freelanceEligible: json['freelance_eligible'] as bool? ?? false,
+      verifiedEducator: json['verified_educator'] as bool? ?? false,
+
     );
   }
 
@@ -71,6 +93,13 @@ class UserProfile {
       'created_at': createdAt?.toIso8601String(),
       'is_verified': isVerified,
       'updated_at': updatedAt?.toIso8601String(),
+      'total_points': totalPoints,
+      'rank_level': rankLevel,
+      'consistency_score': consistencyScore,
+      'authenticity_score': authenticityScore,
+      'contribution_score': contributionScore,
+      'freelance_eligible': freelanceEligible,
+      'verified_educator': verifiedEducator,
     };
   }
 
@@ -89,6 +118,13 @@ class UserProfile {
     DateTime? createdAt,
     bool? isVerified,
     DateTime? updatedAt,
+    int? totalPoints,
+    String? rankLevel,
+    double? consistencyScore,
+    double? authenticityScore,
+    double? contributionScore,
+    bool? freelanceEligible,
+    bool? verifiedEducator,
   }) {
     return UserProfile(
       user_id: user_id ?? this.user_id,
@@ -105,6 +141,13 @@ class UserProfile {
       createdAt: createdAt ?? this.createdAt,
       isVerified: isVerified ?? this.isVerified,
       updatedAt: updatedAt ?? this.updatedAt,
+      totalPoints: totalPoints ?? this.totalPoints,
+      rankLevel: rankLevel ?? this.rankLevel,
+      consistencyScore: consistencyScore ?? this.consistencyScore,
+      authenticityScore: authenticityScore ?? this.authenticityScore,
+      contributionScore: contributionScore ?? this.contributionScore,
+      freelanceEligible: freelanceEligible ?? this.freelanceEligible,
+      verifiedEducator: verifiedEducator ?? this.verifiedEducator,
     );
   }
 

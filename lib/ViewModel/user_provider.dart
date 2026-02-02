@@ -28,8 +28,19 @@ final userProfileProvider = FutureProvider.family<UserProfile?, String>((ref, us
     debugPrint('Fetching user profile for userId: $userId');
 
     final response = await Supabase.instance.client
-        .from('user_profiles') // Replace with your actual table name
-        .select()
+        .from('user_profiles')
+        .select('''
+          *,
+          user_profile_rank(
+            total_points,
+            rank_level,
+            consistency_score,
+            authenticity_score,
+            contribution_score,
+            freelance_eligible,
+            verified_educator
+          )
+        ''')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -37,6 +48,19 @@ final userProfileProvider = FutureProvider.family<UserProfile?, String>((ref, us
       debugPrint('No user profile found for userId: $userId');
       return null;
     }
+
+    final profileData = {
+      ...response,
+      if (response['user_profile_rank'] != null) ...{
+        'total_points': response['user_profile_rank']['total_points'],
+        'rank_level': response['user_profile_rank']['rank_level'],
+        'consistency_score': response['user_profile_rank']['consistency_score'],
+        'authenticity_score': response['user_profile_rank']['authenticity_score'],
+        'contribution_score': response['user_profile_rank']['contribution_score'],
+        'freelance_eligible': response['user_profile_rank']['freelance_eligible'],
+        'verified_educator': response['user_profile_rank']['verified_educator'],
+      }
+    };
 
     debugPrint('User profile fetched successfully: ${response['username']}');
     return UserProfile.fromJson(response);
@@ -68,22 +92,49 @@ class UserProfileRepository {
   UserProfileRepository(this.ref);
 
   // Fetch user profile by ID
+  // Fetch user profile by ID
   Future<UserProfile?> getUserProfile(String userId) async {
     try {
+      //  Join with user_profile_rank
       final response = await Supabase.instance.client
-          .from('user_profiles') // Replace with your actual table name
-          .select()
+          .from('user_profiles')
+          .select('''
+          *,
+          user_profile_rank(
+            total_points,
+            rank_level,
+            consistency_score,
+            authenticity_score,
+            contribution_score,
+            freelance_eligible,
+            verified_educator
+          )
+        ''')
           .eq('user_id', userId)
           .maybeSingle();
 
       if (response == null) return null;
-      return UserProfile.fromJson(response);
+
+      // Flatten the nested rank data
+      final profileData = {
+        ...response,
+        if (response['user_profile_rank'] != null) ...{
+          'total_points': response['user_profile_rank']['total_points'],
+          'rank_level': response['user_profile_rank']['rank_level'],
+          'consistency_score': response['user_profile_rank']['consistency_score'],
+          'authenticity_score': response['user_profile_rank']['authenticity_score'],
+          'contribution_score': response['user_profile_rank']['contribution_score'],
+          'freelance_eligible': response['user_profile_rank']['freelance_eligible'],
+          'verified_educator': response['user_profile_rank']['verified_educator'],
+        }
+      };
+
+      return UserProfile.fromJson(profileData);
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
       rethrow;
     }
   }
-
   // Update user profile
   Future<UserProfile> updateUserProfile(UserProfile profile) async {
     try {

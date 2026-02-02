@@ -8,6 +8,8 @@ import '../ViewModel/post_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../ViewModel/auth_provider.dart';
 import '../ViewModel/setProfileProvider.dart';
+import '../constants/domain_constants.dart';
+
 class PostCreateScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<PostCreateScreen> createState() => _PostCreateScreenState();
@@ -25,7 +27,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
   final FocusNode _tagsFocusNode = FocusNode();
 
   final SupabaseClient _supabase = Supabase.instance.client;
-
+  String? _selectedDomain;
 
 
   bool _isExpanded = false;
@@ -167,6 +169,106 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
           ),
         );
       },
+    );
+  }
+
+
+  // Domain Dropdown Widget
+  Widget _buildDomainDropdown() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _selectedDomain == null ? Colors.red.withOpacity(0.5) : Colors.grey[700]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                const Text(
+                  'Domain',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  '*',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedDomain,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Select content domain',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                dropdownColor: Colors.grey[850],
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                items: DomainConstants.domains.map((domain) {
+                  return DropdownMenuItem<String>(
+                    value: domain['value'],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            domain['icon']!,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              domain['label']!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (String? value) {
+                  setState(() {
+                    _selectedDomain = value;
+                  });
+                  if (value != null) {
+                    ref.read(postCreateProvider.notifier).updateDomain(value);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -331,6 +433,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
               ),
             ),
 
+            _buildDomainDropdown(),
 
             // Title Input
             Container(
@@ -400,21 +503,59 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
               ),
             ),
 
-            // Tags Section
+            // Tags Input
             Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: Colors.grey[900],
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _tagsFocusNode.hasFocus ? Colors.blue : Colors.grey[700]!,
+                  color: _tags.isEmpty ? Colors.red.withOpacity(0.5) : Colors.grey[700]!,  // ✅ Red border if empty
                   width: 1,
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Tags Input
+                  // HEADER WITH MANDATORY INDICATOR
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Tags',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text(
+                          '*',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  //  HELPER TEXT
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Text(
+                      'Use tags appropriate to your content to help others discover it',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+
+                  // Tag Input Row
                   Row(
                     children: [
                       Expanded(
@@ -426,7 +567,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
                             fontSize: 16,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Add tags...',
+                            hintText: 'Add a tag (e.g., tutorial, beginner, tips)',  // ✅ Better hint
                             hintStyle: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 16,

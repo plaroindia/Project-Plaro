@@ -28,6 +28,17 @@ class _SetProfileState extends ConsumerState<SetProfile> {
   File? _profileImage; // New selected image
   String? _profileImageUrl; // Current profile image URL from database
 
+
+  final List<String> _roleOptions = [
+    'Student',
+    'Professional',
+    'Learner',
+  ];
+
+  String? _selectedRole;
+
+
+
   @override
   void initState() {
     super.initState();
@@ -548,20 +559,65 @@ class _SetProfileState extends ConsumerState<SetProfile> {
 
                     // Role field
                     profileState.when(
-                      data: (profile) => _buildLabeledField(
-                        label: 'Role (Optional)',
-                        controller: _roleController,
+                      data: (profile) => DropdownButtonFormField<String>(
+                        value: _selectedRole,
+                        decoration: const InputDecoration(
+                          labelText: 'Role',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _roleOptions
+                            .map(
+                              (role) => DropdownMenuItem<String>(
+                            value: role,
+                            child: Text(role),
+                          ),
+                        )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRole = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Role is required';
+                          }
+                          return null;
+                        },
                       ),
-                      loading: () => _buildLabeledField(
-                        label: 'Loading...',
-                        controller: _roleController,
-                        enabled: false,
+
+                      loading: () => DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Role',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [],
+                        onChanged: null,
+                        disabledHint: const Text('Loading...'),
                       ),
-                      error: (error, stack) => _buildLabeledField(
-                        label: 'Role (Optional) - Error loading data',
-                        controller: _roleController,
+
+                      error: (error, stack) => DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Role',
+                          border: OutlineInputBorder(),
+                          errorText: 'Failed to load role data',
+                        ),
+                        items: _roleOptions
+                            .map(
+                              (role) => DropdownMenuItem<String>(
+                            value: role,
+                            child: Text(role),
+                          ),
+                        )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRole = value;
+                          });
+                        },
                       ),
                     ),
+
 
                     const SizedBox(height: 20),
 

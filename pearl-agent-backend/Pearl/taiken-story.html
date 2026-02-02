@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taiken Story Lab | The Startup Challenge</title>
+    <link rel="stylesheet" href="css/taiken.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <img src="assets/logo/taiken-logo.svg" alt="Taiken Logo" class="logo-img">
+                <span class="logo-text">Taiken</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="index.html">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#story" class="active">
+                    <i class="fas fa-book-open"></i>
+                    <span>Story</span>
+                </a>
+                <a href="#content">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Learning</span>
+                </a>
+                <a href="#practice">
+                    <i class="fas fa-code"></i>
+                    <span>Practice</span>
+                </a>
+                <div class="story-progress-indicator">
+                    <div class="progress-info">
+                        <span>Chapter 2</span>
+                        <span>45%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 45%"></div>
+                    </div>
+                </div>
+                <div class="lives-display">
+                    <span class="lives-label">Lives:</span>
+                    <div class="lives-container">
+                        <i class="fas fa-heart"></i>
+                        <i class="fas fa-heart"></i>
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            
+            <button class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Story Container -->
+    <div class="story-container">
+        <!-- Left Panel: Story Content -->
+        <div class="story-panel">
+            <div class="story-header">
+                <div class="story-info">
+                    <div class="story-badge">
+                        <i class="fas fa-rocket"></i>
+                        <span>The Startup Challenge</span>
+                    </div>
+                    <h1>Chapter 2: The Bug Hunt</h1>
+                    <p class="story-subtitle">Debug a production issue in a real startup application</p>
+                    
+                    <div class="story-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            <span>Estimated: 2-3 hours</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-trophy"></i>
+                            <span>Difficulty: Intermediate</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-users"></i>
+                            <span>2,458 active learners</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="story-actions">
+                    <button class="btn outline" id="hintBtn">
+                        <i class="fas fa-lightbulb"></i>
+                        Get Hint (3 left)
+                    </button>
+                    <button class="btn primary" id="nextChapterBtn">
+                        <i class="fas fa-arrow-right"></i>
+                        Next Chapter
+                    </button>
+                </div>
+            </div>
+            
+            <div class="story-content" id="storyContent">
+                <!-- Scene 1: Introduction -->
+                <div class="story-scene active" id="scene1">
+                    <div class="scene-header">
+                        <h2><i class="fas fa-map-marker-alt"></i> Scene 1: The Emergency Call</h2>
+                        <div class="scene-progress">
+                            <span>Scene 1 of 4</span>
+                        </div>
+                    </div>
+                    
+                    <div class="scene-body">
+                        <div class="character-dialogue">
+                            <div class="character-avatar">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=CEO" alt="CEO">
+                                <span class="character-name">CEO Sarah</span>
+                            </div>
+                            <div class="dialogue-bubble">
+                                <p>"Alex, we have a major problem! Our main customer dashboard is completely broken in production. Users are reporting blank screens and errors. We need you to fix this ASAP!"</p>
+                            </div>
+                        </div>
+                        
+                        <div class="character-dialogue user">
+                            <div class="character-avatar">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="You">
+                                <span class="character-name">You</span>
+                            </div>
+                            <div class="dialogue-bubble">
+                                <p>"Understood. Can you show me the error logs and which users are affected?"</p>
+                            </div>
+                        </div>
+                        
+                        <div class="character-dialogue">
+                            <div class="character-avatar">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=CTO" alt="CTO">
+                                <span class="character-name">CTO Mark</span>
+                            </div>
+                            <div class="dialogue-bubble">
+                                <p>"Here are the error logs from Sentry. It looks like a JavaScript error is preventing the main React component from rendering. The error occurs in <code>Dashboard.js</code> at line 47."</p>
+                                <div class="error-log">
+                                    <pre><code class="language-javascript">Error: Cannot read property 'map' of undefined
+    at Dashboard.render (Dashboard.js:47)
+    at renderWithHooks (react-dom.development.js:14985)
+    at mountIndeterminateComponent (react-dom.development.js:17811)</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="scene-task">
+                            <h3><i class="fas fa-tasks"></i> Your Task</h3>
+                            <p>Investigate the error in <code>Dashboard.js</code> and identify why the <code>.map()</code> method is being called on an undefined variable.</p>
+                            
+                            <div class="task-requirements">
+                                <h4>Requirements:</h4>
+                                <ul>
+                                    <li>Examine the Dashboard component code</li>
+                                    <li>Identify the undefined variable causing the error</li>
+                                    <li>Understand why the data might be undefined</li>
+                                    <li>Plan a fix for the issue</li>
+                                </ul>
+                            </div>
+                            
+                            <button class="btn primary" onclick="nextScene()">
+                                <i class="fas fa-search"></i>
+                                Start Investigation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scene 2: Code Investigation -->
+                <div class="story-scene" id="scene2">
+                    <div class="scene-header">
+                        <h2><i class="fas fa-code"></i> Scene 2: Code Investigation</h2>
+                        <div class="scene-progress">
+                            <span>Scene 2 of 4</span>
+                        </div>
+                    </div>
+                    
+                    <div class="scene-body">
+                        <div class="character-dialogue">
+                            <div class="character-avatar">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=You" alt="You">
+                                <span class="character-name">You</span>
+                            </div>
+                            <div class="dialogue-bubble">
+                                <p>"Let me examine the Dashboard component. The error says we're trying to call <code>.map()</code> on an undefined value at line 47. Let me look at the code..."</p>
+                            </div>
+                        </div>
+                        
+                        <div class="code-review">
+                            <h3><i class="fas fa-file-code"></i> Dashboard.js - Current Code</h3>
+                            <div class="code-container">
+                                <pre><code class="language-javascript">import React, { useState, useEffect } from 'react';
+import { fetchUserData } from '../api/users';
+import DashboardCard from './DashboardCard';
+import './Dashboard.css';
+
+const Dashboard = () => {
+    const [userData, setUserData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const data = await fetchUserData();
+                setUserData(data);
+                setLoading(false);
+            } catch (err) {
+                setError(err.message);
+                setLoading(false);
+            }
+        };
+        
+        loadData();
+    }, []);
+
+    if (loading) return &lt;div className="loading"&gt;Loading...&lt;/div&gt;;
+    if (error) return &lt;div className="error"&gt;Error: {error}&lt;/div&gt;;
+
+    return (
+        &lt;div className="dashboard"&gt;
+            &lt;h1&gt;User Dashboard&lt;/h1&gt;
+            &lt;div className="dashboard-grid"&gt;
+                {/* LINE 47: Error occurs here */}
+                {userData.users.map(user => (
+                    &lt;DashboardCard 
+                        key={user.id}
+                        user={user}
+                    /&gt;
+                ))}
+            &lt;/div&gt;
+        &lt;/div&gt;
+    );
+};
+
+export default Dashboard;</code></pre>
+                            </div>
+                            
+                            <div class="code-analysis">
+                                <h4><i class="fas fa-search"></i> Analysis</h4>
+                                <div class="analysis-points">
+                                    <div class="analysis-point">
+                                        <span class="point-icon">🔍</span>
+                                        <p>The error occurs because <code>userData.users</code> is undefined</p>
+                                    </div>
+                                    <div class="analysis-point">
+                                        <span class="point-icon">💡</span>
+                                        <p><code>fetchUserData()</code> might return data in a different structure than expected</p>
+                                    </div>
+                                    <div class="analysis-point">
+                                        <span class="point-icon">⚠️</span>
+                                        <p>No null/undefined check before calling <code>.map()</code></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="investigation-task">
+                            <h3><i class="fas fa-question-circle"></i> Investigation Question</h3>
+                            <p>Based on the code analysis, what is the most likely cause of the error?</p>
+                            
+                            <div class="multiple-choice" id="question1">
+                                <div class="choice" data-correct="false">
+                                    <input type="radio" name="question1" id="q1a">
+                                    <label for="q1a">The API endpoint is down</label>
+                                </div>
+                                <div class="choice" data-correct="true">
+                                    <input type="radio" name="question1" id="q1b">
+                                    <label for="q1b"><code>fetchUserData()</code> returns an object without a <code>users</code> property</label>
+                                </div>
+                                <div class="choice" data-correct="false">
+                                    <input type="radio" name="question1" id="q1c">
+                                    <label for="q1c">The <code>.map()</code> method syntax is incorrect</label>
+                                </div>
+                                <div class="choice" data-correct="false">
+                                    <input type="radio" name="question1" id="q1d">
+                                    <label for="q1d">React is not properly installed</label>
+                                </div>
+                            </div>
+                            
+                            <div class="task-actions">
+                                <button class="btn outline" onclick="useHint()">
+                                    <i class="fas fa-lightbulb"></i>
+                                    Get Hint
+                                </button>
+                                <button class="btn primary" onclick="checkAnswer('question1')">
+                                    <i class="fas fa-check"></i>
+                                    Submit Answer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scene 3: API Investigation -->
+                <div class="story-scene" id="scene3">
+                    <div class="scene-header">
+                        <h2><i class="fas fa-server"></i> Scene 3: API Response Analysis</h2>
+                        <div class="scene-progress">
+                            <span>Scene 3 of 4</span>
+                        </div>
+                    </div>
+                    
+                    <div class="scene-body">
+                        <div class="character-dialogue">
+                            <div class="character-avatar">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=You" alt="You">
+                                <span class="character-name">You</span>
+                            </div>
+                            <div class="dialogue-bubble">
+                                <p>"Let me check what <code>fetchUserData()</code> actually returns. The issue might be in the API response structure."</p>
+                            </div>
+                        </div>
+                        
+                        <div class="api-investigation">
+                            <h3><i class="fas fa-database"></i> API Response Investigation</h3>
+                            
+                            <div class="api-response">
+                                <h4>Current API Response:</h4>
+                                <div class="code-container">
+                                    <pre><code class="language-javascript">// api/users.js - fetchUserData function
+export const fetchUserData = async () => {
+    const response = await fetch('/api/users');
+    if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+    }
+    return await response.json();
+};
+
+// Current API response structure:
+{
+    "data": [
+        { "id": 1, "name": "Alice", "email": "alice@example.com" },
+        { "id": 2, "name": "Bob", "email": "bob@example.com" },
+        // ... more users
+    ],
+    "total": 42,
+    "page": 1
+}</code></pre>
+                                </div>
+                            </div>
+                            
+                            <div class="problem-statement">
+                                <h4><i class="fas fa-exclamation-triangle"></i> The Problem:</h4>
+                                <p>The component expects <code>userData.users</code> but the API returns <code>data</code> array directly under the response object.</p>
+                            </div>
+                            
+                            <div class="fix-task">
+                                <h3><i class="fas fa-wrench"></i> Fix Implementation</h3>
+                                <p>How should we fix the Dashboard component to handle the actual API response structure?</p>
+                                
+                                <div class="code-fix-options">
+                                    <div class="fix-option">
+                                        <h5>Option A: Update component to use <code>userData.data</code></h5>
+                                        <pre><code class="language-javascript">// Change line 47 from:
+userData.users.map(user => ...)
+// To:
+userData.data.map(user => ...)</code></pre>
+                                    </div>
+                                    
+                                    <div class="fix-option">
+                                        <h5>Option B: Add null check and use optional chaining</h5>
+                                        <pre><code class="language-javascript">// Safer approach:
+userData?.data?.map(user => ...) || []</code></pre>
+                                    </div>
+                                    
+                                    <div class="fix-option">
+                                        <h5>Option C: Update the API function to transform data</h5>
+                                        <pre><code class="language-javascript">// In api/users.js, transform the response:
+return { users: data, total, page };</code></pre>
+                                    </div>
+                                </div>
+                                
+                                <div class="fix-question">
+                                    <p>Which approach is the <strong>best practice</strong> for this situation?</p>
+                                    <div class="multiple-choice" id="question2">
+                                        <div class="choice" data-correct="false">
+                                            <input type="radio" name="question2" id="q2a">
+                                            <label for="q2a">Option A - Simple fix</label>
+                                        </div>
+                                        <div class="choice" data-correct="true">
+                                            <input type="radio" name="question2" id="q2b">
+                                            <label for="q2b">Option B - Most robust with null safety</label>
+                                        </div>
+                                        <div class="choice" data-correct="false">
+                                            <input type="radio" name="question2" id="q2c">
+                                            <label for="q2c">Option C - Breaking change to API</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="code-editor">
+                                    <h4><i class="fas fa-edit"></i> Implement Your Fix</h4>
+                                    <div class="editor-container">
+                                        <div class="editor-header">
+                                            <span>Dashboard.js</span>
+                                            <div class="editor-actions">
+                                                <button class="btn small outline" onclick="runCode()">
+                                                    <i class="fas fa-play"></i>
+                                                    Run Test
+                                                </button>
+                                                <button class="btn small primary" onclick="submitFix()">
+                                                    <i class="fas fa-check"></i>
+                                                    Submit Fix
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <textarea class="code-input" id="codeEditor" rows="15">import React, { useState, useEffect } from 'react';
+import { fetchUserData } from '../api/users';
+import DashboardCard from './DashboardCard';
+import './Dashboard.css';
+
+const Dashboard = () => {
+    const [userData, setUserData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const data = await fetchUserData();
+                setUserData(data);
+                setLoading(false);
+            } catch (err) {
+                setError(err.message);
+                setLoading(false);
+            }
+        };
+        
+        loadData();
+    }, []);
+
+    if (loading) return &lt;div className="loading"&gt;Loading...&lt;/div&gt;;
+    if (error) return &lt;div className="error"&gt;Error: {error}&lt;/div&gt;;
+
+    return (
+        &lt;div className="dashboard"&gt;
+            &lt;h1&gt;User Dashboard&lt;/h1&gt;
+            &lt;div className="dashboard-grid"&gt;
+                {/* TODO: Fix this line */}
+                {userData?.data?.map(user => (
+                    &lt;DashboardCard 
+                        key={user.id}
+                        user={user}
+                    /&gt;
+                )) || []}
+            &lt;/div&gt;
+        &lt;/div&gt;
+    );
+};
+
+export default Dashboard;</textarea>
+                                    </div>
+                                    
+                                    <div class="test-results" id="testResults">
+                                        <!-- Test results will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scene 4: Resolution -->
+                <div class="story-scene" id="scene4">
+                    <div class="scene-header">
+                        <h2><i class="fas fa-check-circle"></i> Scene 4: Resolution & Learning</h2>
+                        <div class="scene-progress">
+                            <span>Scene 4 of 4</span>
+                        </div>
+                    </div>
+                    
+                    <div class="scene-body">
+                        <div class="character-dialogue">
+                            <div class="character-avatar">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=CEO" alt="CEO">
+                                <span class="character-name">CEO Sarah</span>
+                            </div>
+                            <div class="dialogue-bubble success">
+                                <p>"Excellent work, Alex! The dashboard is working again. You not only fixed the bug but also implemented robust error handling. Our users are happy again!"</p>
+                            </div>
+                        </div>
+                        
+                        <div class="achievement-unlocked">
+                            <div class="achievement-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h3>Achievement Unlocked: Bug Hunter</h3>
+                                <p>Successfully debugged and fixed a production issue in under 2 hours</p>
+                            </div>
+                        </div>
+                        
+                        <div class="learning-summary">
+                            <h3><i class="fas fa-graduation-cap"></i> Key Learnings</h3>
+                            <div class="learnings-grid">
+                                <div class="learning-card">
+                                    <div class="learning-icon">
+                                        <i class="fas fa-code"></i>
+                                    </div>
+                                    <div class="learning-content">
+                                        <h4>Null Safety in JavaScript</h4>
+                                        <p>Always check for null/undefined before accessing properties or calling methods</p>
+                                        <a href="#" class="learning-link">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            Learn more about optional chaining
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div class="learning-card">
+                                    <div class="learning-icon">
+                                        <i class="fas fa-server"></i>
+                                    </div>
+                                    <div class="learning-content">
+                                        <h4>API Response Handling</h4>
+                                        <p>Always verify API response structure and handle edge cases</p>
+                                        <a href="#" class="learning-link">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            API best practices guide
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div class="learning-card">
+                                    <div class="learning-icon">
+                                        <i class="fas fa-bug"></i>
+                                    </div>
+                                    <div class="learning-content">
+                                        <h4>Debugging Production Issues</h4>
+                                        <p>Use error logs, understand stack traces, and reproduce issues locally</p>
+                                        <a href="#" class="learning-link">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            Debugging techniques
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div class="learning-card">
+                                    <div class="learning-icon">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </div>
+                                    <div class="learning-content">
+                                        <h4>Defensive Programming</h4>
+                                        <p>Write code that handles unexpected inputs and edge cases gracefully</p>
+                                        <a href="#" class="learning-link">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            Defensive programming patterns
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chapter-complete">
+                            <div class="completion-content">
+                                <h2>🎉 Chapter Complete!</h2>
+                                <p>You've successfully debugged a production issue and learned valuable skills.</p>
+                                
+                                <div class="completion-stats">
+                                    <div class="stat">
+                                        <div class="stat-number">100%</div>
+                                        <div class="stat-label">Completion</div>
+                                    </div>
+                                    <div class="stat">
+                                        <div class="stat-number">2</div>
+                                        <div class="stat-label">Hints Used</div>
+                                    </div>
+                                    <div class="stat">
+                                        <div class="stat-number">A+</div>
+                                        <div class="stat-label">Grade</div>
+                                    </div>
+                                    <div class="stat">
+                                        <div class="stat-number">250</div>
+                                        <div class="stat-label">XP Earned</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="completion-actions">
+                                    <button class="btn outline" onclick="reviewChapter()">
+                                        <i class="fas fa-redo"></i>
+                                        Review Chapter
+                                    </button>
+                                    <button class="btn primary" id="continueLearningBtn">
+                                        <i class="fas fa-arrow-right"></i>
+                                        Continue to Chapter 3
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Panel: Learning Resources & Practice -->
+        <div class="resources-panel">
+            <!-- Resources Tabs -->
+            <div class="resources-tabs">
+                <button class="tab-btn active" data-tab="resources">
+                    <i class="fas fa-book"></i>
+                    Resources
+                </button>
+                <button class="tab-btn" data-tab="practice">
+                    <i class="fas fa-code"></i>
+                    Practice
+                </button>
+                <button class="tab-btn" data-tab="hints">
+                    <i class="fas fa-lightbulb"></i>
+                    Hints
+                </button>
+            </div>
+            
+            <!-- Resources Content -->
+            <div class="tab-content active" id="resourcesTab">
+                <div class="resources-section">
+                    <h3><i class="fas fa-video"></i> Video Tutorials</h3>
+                    <div class="resource-list">
+                        <a href="#" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fab fa-youtube"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>JavaScript Error Handling</h4>
+                                <p>Learn how to handle errors effectively</p>
+                                <span class="resource-duration">15 min</span>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fab fa-youtube"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>React useEffect & API Calls</h4>
+                                <p>Proper data fetching in React</p>
+                                <span class="resource-duration">22 min</span>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fab fa-youtube"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>Debugging in Chrome DevTools</h4>
+                                <p>Master the debugging tools</p>
+                                <span class="resource-duration">18 min</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="resources-section">
+                    <h3><i class="fas fa-file-alt"></i> Documentation</h3>
+                    <div class="resource-list">
+                        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining" target="_blank" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fab fa-mdn"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>Optional Chaining (?.)</h4>
+                                <p>MDN Documentation</p>
+                                <span class="resource-type">Article</span>
+                            </div>
+                        </a>
+                        
+                        <a href="https://react.dev/reference/react/useEffect" target="_blank" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fab fa-react"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>React useEffect Hook</h4>
+                                <p>Official React Docs</p>
+                                <span class="resource-type">Documentation</span>
+                            </div>
+                        </a>
+                        
+                        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" target="_blank" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fab fa-js"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>Array.map() Method</h4>
+                                <p>Complete guide with examples</p>
+                                <span class="resource-type">Guide</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="resources-section">
+                    <h3><i class="fas fa-tools"></i> Tools & References</h3>
+                    <div class="resource-list">
+                        <a href="https://codesandbox.io/" target="_blank" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-code"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>CodeSandbox</h4>
+                                <p>Online React playground</p>
+                                <span class="resource-type">Tool</span>
+                            </div>
+                        </a>
+                        
+                        <a href="https://jsonformatter.org/" target="_blank" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-json"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>JSON Formatter</h4>
+                                <p>Validate and format JSON</p>
+                                <span class="resource-type">Tool</span>
+                            </div>
+                        </a>
+                        
+                        <a href="https://regex101.com/" target="_blank" class="resource-item">
+                            <div class="resource-icon">
+                                <i class="fas fa-terminal"></i>
+                            </div>
+                            <div class="resource-content">
+                                <h4>Regex Tester</h4>
+                                <p>Test regular expressions</p>
+                                <span class="resource-type">Tool</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="resources-section">
+                    <h3><i class="fas fa-bookmark"></i> Cheat Sheets</h3>
+                    <div class="cheat-sheets">
+                        <div class="cheat-sheet">
+                            <h4>Common JavaScript Errors</h4>
+                            <ul>
+                                <li><code>Cannot read property X of undefined</code></li>
+                                <li><code>X is not a function</code></li>
+                                <li><code>Unexpected token</code></li>
+                                <li><code>X is not defined</code></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="cheat-sheet">
+                            <h4>Debugging Commands</h4>
+                            <ul>
+                                <li><code>console.log(variable)</code></li>
+                                <li><code>debugger</code></li>
+                                <li><code>console.trace()</code></li>
+                                <li><code>console.table(data)</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Practice Content -->
+            <div class="tab-content" id="practiceTab">
+                <div class="practice-section">
+                    <h3><i class="fas fa-puzzle-piece"></i> Practice Questions</h3>
+                    
+                    <div class="practice-question">
+                        <h4>Question 1: Optional Chaining</h4>
+                        <p>What will be the output of the following code?</p>
+                        <pre><code class="language-javascript">const user = { profile: null };
+console.log(user?.profile?.name ?? 'Unknown');</code></pre>
+                        
+                        <div class="practice-choices">
+                            <label class="practice-choice">
+                                <input type="radio" name="practice1">
+                                <span>Error</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice1">
+                                <span>'Unknown'</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice1">
+                                <span>null</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice1">
+                                <span>undefined</span>
+                            </label>
+                        </div>
+                        
+                        <button class="btn small outline">
+                            <i class="fas fa-eye"></i>
+                            Show Answer
+                        </button>
+                    </div>
+                    
+                    <div class="practice-question">
+                        <h4>Question 2: Array.map() Behavior</h4>
+                        <p>What does the following code return?</p>
+                        <pre><code class="language-javascript">const numbers = [1, 2, 3, 4];
+const result = numbers.map(num => num * 2)
+                     .filter(num => num > 4)
+                     .reduce((sum, num) => sum + num, 0);</code></pre>
+                        
+                        <div class="practice-choices">
+                            <label class="practice-choice">
+                                <input type="radio" name="practice2">
+                                <span>14</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice2">
+                                <span>20</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice2">
+                                <span>18</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice2">
+                                <span>Error</span>
+                            </label>
+                        </div>
+                        
+                        <button class="btn small outline">
+                            <i class="fas fa-eye"></i>
+                            Show Answer
+                        </button>
+                    </div>
+                    
+                    <div class="practice-question">
+                        <h4>Question 3: React useEffect</h4>
+                        <p>How many times will this useEffect run?</p>
+                        <pre><code class="language-javascript">useEffect(() => {
+    console.log('Effect ran');
+    return () => console.log('Cleanup');
+}, [userId, isActive]);</code></pre>
+                        
+                        <div class="practice-choices">
+                            <label class="practice-choice">
+                                <input type="radio" name="practice3">
+                                <span>Once on mount</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice3">
+                                <span>Every render</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice3">
+                                <span>When userId or isActive changes</span>
+                            </label>
+                            <label class="practice-choice">
+                                <input type="radio" name="practice3">
+                                <span>Never</span>
+                            </label>
+                        </div>
+                        
+                        <button class="btn small outline">
+                            <i class="fas fa-eye"></i>
+                            Show Answer
+                        </button>
+                    </div>
+                    
+                    <div class="practice-actions">
+                        <button class="btn primary">
+                            <i class="fas fa-check-circle"></i>
+                            Submit All Answers
+                        </button>
+                        <button class="btn outline">
+                            <i class="fas fa-redo"></i>
+                            Reset Practice
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="practice-section">
+                    <h3><i class="fas fa-code"></i> Coding Challenge</h3>
+                    <div class="coding-challenge">
+                        <h4>Fix the Broken Function</h4>
+                        <p>Fix this function to safely handle null/undefined inputs:</p>
+                        <pre><code class="language-javascript">function getUserEmail(user) {
+    return user.profile.contact.email;
+}</code></pre>
+                        
+                        <div class="code-editor-small">
+                            <textarea class="code-input" rows="8" placeholder="Write your solution here...">function getUserEmail(user) {
+    // Your fix here
+}</textarea>
+                        </div>
+                        
+                        <div class="test-cases">
+                            <h5>Test Cases:</h5>
+                            <div class="test-case">
+                                <span class="test-input">Input: {profile: {contact: {email: "test@example.com"}}}</span>
+                                <span class="test-expected">Expected: "test@example.com"</span>
+                            </div>
+                            <div class="test-case">
+                                <span class="test-input">Input: {profile: null}</span>
+                                <span class="test-expected">Expected: null</span>
+                            </div>
+                            <div class="test-case">
+                                <span class="test-input">Input: undefined</span>
+                                <span class="test-expected">Expected: null</span>
+                            </div>
+                        </div>
+                        
+                        <button class="btn small primary">
+                            <i class="fas fa-play"></i>
+                            Run Tests
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Hints Content -->
+            <div class="tab-content" id="hintsTab">
+                <div class="hints-section">
+                    <div class="hints-header">
+                        <h3><i class="fas fa-lightbulb"></i> Available Hints</h3>
+                        <div class="hints-count">
+                            <span class="count">3</span>
+                            <span>hints remaining</span>
+                        </div>
+                    </div>
+                    
+                    <div class="hint-item locked">
+                        <div class="hint-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="hint-content">
+                            <h4>Hint 1: Understanding the Error</h4>
+                            <p>Look at the error message carefully. What does "Cannot read property 'map' of undefined" tell you?</p>
+                            <button class="btn small outline unlock-hint" data-hint="1">
+                                <i class="fas fa-unlock"></i>
+                                Unlock (1 Hint Point)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="hint-item locked">
+                        <div class="hint-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="hint-content">
+                            <h4>Hint 2: API Response Structure</h4>
+                            <p>Compare what the component expects vs what the API actually returns.</p>
+                            <button class="btn small outline unlock-hint" data-hint="2">
+                                <i class="fas fa-unlock"></i>
+                                Unlock (1 Hint Point)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="hint-item locked">
+                        <div class="hint-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="hint-content">
+                            <h4>Hint 3: Optional Chaining Solution</h4>
+                            <p>Modern JavaScript has features to safely access nested properties.</p>
+                            <button class="btn small outline unlock-hint" data-hint="3">
+                                <i class="fas fa-unlock"></i>
+                                Unlock (1 Hint Point)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="hint-item unlocked">
+                        <div class="hint-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="hint-content">
+                            <h4>Free Hint: Console.log Debugging</h4>
+                            <p>Add <code>console.log(userData)</code> after the API call to see the actual data structure.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="hint-item purchased">
+                        <div class="hint-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="hint-content">
+                            <h4>Pro Hint: Full Solution</h4>
+                            <p>The fix should use optional chaining and provide a fallback empty array:</p>
+                            <code>{userData?.data?.map(...) || []}</code>
+                            <p class="hint-used"><i class="fas fa-clock"></i> Used 2 minutes ago</p>
+                        </div>
+                    </div>
+                    
+                    <div class="hints-actions">
+                        <button class="btn outline">
+                            <i class="fas fa-sync"></i>
+                            Refresh Hints
+                        </button>
+                        <button class="btn primary">
+                            <i class="fas fa-shopping-cart"></i>
+                            Buy More Hints
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="hints-section">
+                    <h3><i class="fas fa-history"></i> Hint History</h3>
+                    <div class="hint-history">
+                        <div class="history-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <div>
+                                <strong>Used hint on Question 1</strong>
+                                <small>2 minutes ago - Cost: 1 hint point</small>
+                            </div>
+                        </div>
+                        <div class="history-item">
+                            <i class="fas fa-star"></i>
+                            <div>
+                                <strong>Purchased Pro Hint</strong>
+                                <small>5 minutes ago - Cost: 50 coins</small>
+                            </div>
+                        </div>
+                        <div class="history-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <div>
+                                <strong>Used free hint</strong>
+                                <small>10 minutes ago</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lives System Overlay -->
+    <div class="lives-overlay" id="livesOverlay">
+        <div class="lives-content">
+            <div class="lives-header">
+                <h2><i class="fas fa-heart"></i> Lives System</h2>
+                <button class="close-btn" onclick="closeLivesOverlay()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="lives-status">
+                <div class="current-lives">
+                    <h3>Current Lives: <span class="lives-count">3</span>/3</h3>
+                    <div class="hearts-display">
+                        <i class="fas fa-heart"></i>
+                        <i class="fas fa-heart"></i>
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                
+                <div class="lives-info">
+                    <h4>How Lives Work:</h4>
+                    <ul>
+                        <li>You start with 3 lives per chapter</li>
+                        <li>Lose a life for incorrect answers</li>
+                        <li>Regain lives after 30 minutes</li>
+                        <li>Complete challenges to earn extra lives</li>
+                    </ul>
+                </div>
+                
+                <div class="lives-timer">
+                    <h4><i class="fas fa-clock"></i> Next Life In:</h4>
+                    <div class="timer-display" id="lifeTimer">27:45</div>
+                </div>
+            </div>
+            
+            <div class="lives-actions">
+                <button class="btn outline" onclick="watchAdForLife()">
+                    <i class="fas fa-tv"></i>
+                    Watch Ad for Life
+                </button>
+                <button class="btn primary" onclick="buyLives()">
+                    <i class="fas fa-shopping-cart"></i>
+                    Buy Lives (100 coins)
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hint Modal -->
+    <div class="hint-modal" id="hintModal">
+        <div class="modal-overlay" onclick="closeHintModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-lightbulb"></i> Use Hint?</h3>
+                <button class="modal-close" onclick="closeHintModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Using a hint will cost you <strong>1 hint point</strong>. You currently have <strong>3</strong> hint points remaining.</p>
+                <p>This hint will help you understand why the error is occurring.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn outline" onclick="closeHintModal()">
+                    Cancel
+                </button>
+                <button class="btn primary" onclick="confirmUseHint()">
+                    <i class="fas fa-unlock"></i>
+                    Use Hint
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success Modal -->
+    <div class="success-modal" id="successModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="success-content">
+                <h3>Correct Answer!</h3>
+                <p>You've identified the issue correctly. The API returns <code>data</code> instead of <code>users</code>.</p>
+                <p class="xp-earned">+25 XP earned</p>
+            </div>
+            <button class="btn primary" onclick="closeSuccessModal()">
+                Continue
+            </button>
+        </div>
+    </div>
+    
+    <!-- Error Modal -->
+    <div class="error-modal" id="errorModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="error-icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="error-content">
+                <h3>Incorrect Answer</h3>
+                <p id="errorMessage">That's not quite right. Try again or use a hint.</p>
+                <div class="lives-lost">
+                    <i class="fas fa-heart-broken"></i>
+                    <span>You lost 1 life</span>
+                </div>
+            </div>
+            <div class="error-actions">
+                <button class="btn outline" onclick="useHint()">
+                    <i class="fas fa-lightbulb"></i>
+                    Get Hint
+                </button>
+                <button class="btn primary" onclick="closeErrorModal()">
+                    Try Again
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="js/taiken-story.js"></script>
+</body>
+</html>

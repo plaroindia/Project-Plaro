@@ -98,35 +98,45 @@ class SetProfileNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     }
   }
 
-  // Get user profile
+// Get user profile
   Future<void> getUserProfile(String user_id) async {
     state = const AsyncValue.loading();
 
     try {
       final response = await _supabase
           .from('user_profiles')
-          .select()
+          .select('''
+        *,
+        user_profile_rank(
+          total_points,
+          rank_level,
+          consistency_score,
+          authenticity_score,
+          contribution_score,
+          freelance_eligible,
+          verified_educator
+        )
+      ''')
           .eq('user_id', user_id)
           .maybeSingle();
 
       if (response != null) {
-        final userProfile = UserProfile(
-          user_id: response['user_id'],
-          username: response['username'],
-          email: response['email'],
-          role: response['role'],
-          profilePic: response['profile_pic'],
-          bio: response['bio'],
-          study: response['study'],
-          location: response['location'],
-          streakCount: response['streak_count'],
-          followersCount: response['followers_count'],
-          followingCount: response['following_count'],
-          createdAt: response['created_at'] != null
-              ? DateTime.parse(response['created_at'])
-              : null,
-          isVerified: response['is_verified'],
-        );
+        // Flatten the nested rank data
+        final profileData = {
+          ...response,
+          if (response['user_profile_rank'] != null) ...{
+            'total_points': response['user_profile_rank']['total_points'],
+            'rank_level': response['user_profile_rank']['rank_level'],
+            'consistency_score': response['user_profile_rank']['consistency_score'],
+            'authenticity_score': response['user_profile_rank']['authenticity_score'],
+            'contribution_score': response['user_profile_rank']['contribution_score'],
+            'freelance_eligible': response['user_profile_rank']['freelance_eligible'],
+            'verified_educator': response['user_profile_rank']['verified_educator'],
+          }
+        };
+
+        // Use fromJson instead of manual construction
+        final userProfile = UserProfile.fromJson(profileData);
         state = AsyncValue.data(userProfile);
       } else {
         state = const AsyncValue.data(null);

@@ -1,0 +1,382 @@
+"""
+Adzuna API Test Script
+Tests job search functionality and displays results
+"""
+
+import requests
+import json
+from typing import Dict, List
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Configuration
+# IMPORTANT: APP_ID is the LONGER value, APP_KEY is the SHORTER value
+# Check your Adzuna dashboard to get the correct values
+ADZUNA_APP_ID = os.getenv('ADZUNA_APP_ID', '26cfbd27')
+ADZUNA_APP_KEY = os.getenv('ADZUNA_APP_KEY', 'f30187257c83b72773ee276b7ac56048')
+BASE_URL = "https://api.adzuna.com/v1/api/jobs"
+COUNTRY = "in"  # India
+
+
+def test_basic_search():
+    """Test 1: Basic job search"""
+    print("\n" + "=" * 60)
+    print("TEST 1: Basic Job Search")
+    print("=" * 60)
+
+    url = f"{BASE_URL}/{COUNTRY}/search/1"
+
+    params = {
+        "app_id": ADZUNA_APP_ID,
+        "app_key": ADZUNA_APP_KEY,
+        "results_per_page": 5,
+        "what": "Python Developer",
+        "where": "Chennai",
+        "content-type": "application/json"
+    }
+
+    try:
+        print("\nSearching for: Python Developer in Chennai")
+        print(f"API URL: {url}")
+
+        response = requests.get(url, params=params, timeout=10)
+
+        print(f"\nStatus Code: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+
+            print("Success!")
+            print("\nResults Summary:")
+            print(f"   Total Jobs Found: {data.get('count', 0)}")
+            print(f"   Results Returned: {len(data.get('results', []))}")
+
+            print("\nJob Listings:")
+            for i, job in enumerate(data.get('results', [])[:5], 1):
+                print(f"\n   {i}. {job.get('title', 'N/A')}")
+                print(f"      Company: {job.get('company', {}).get('display_name', 'N/A')}")
+                print(f"      Location: {job.get('location', {}).get('display_name', 'N/A')}")
+                print(f"      Salary: {job.get('salary_min', 'N/A')} - {job.get('salary_max', 'N/A')}")
+                print(f"      Posted: {job.get('created', 'N/A')}")
+                print(f"      URL: {job.get('redirect_url', 'N/A')[:60]}...")
+
+            return True
+        else:
+            print(f"Error: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+
+    except requests.exceptions.Timeout:
+        print("Request timed out")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return False
+
+
+def test_skill_based_search():
+    """Test 2: Search multiple skills"""
+    print("\n" + "=" * 60)
+    print("TEST 2: Multi-Skill Search")
+    print("=" * 60)
+
+    skills = ["Python", "React", "SQL", "Machine Learning"]
+    location = "Bangalore"
+
+    results_summary = {}
+
+    for skill in skills:
+        url = f"{BASE_URL}/{COUNTRY}/search/1"
+
+        params = {
+            "app_id": ADZUNA_APP_ID,
+            "app_key": ADZUNA_APP_KEY,
+            "results_per_page": 1,
+            "what": skill,
+            "where": location,
+            "content-type": "application/json"
+        }
+
+        try:
+            print(f"\nSearching: {skill} in {location}...", end=" ")
+            response = requests.get(url, params=params, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                count = data.get('count', 0)
+                results_summary[skill] = count
+                print(f"{count} jobs found")
+            else:
+                results_summary[skill] = 0
+                print(f"Failed ({response.status_code})")
+
+        except Exception as e:
+            results_summary[skill] = 0
+            print(f"Error: {e}")
+
+    print("\nSkill Demand Analysis:")
+    sorted_skills = sorted(results_summary.items(), key=lambda x: x[1], reverse=True)
+    for skill, count in sorted_skills:
+        bar = "#" * min(50, count // 10)
+        print(f"   {skill:20s} {count:6d} jobs {bar}")
+
+    return len(results_summary) > 0
+
+
+def test_job_details():
+    """Test 3: Get specific job details"""
+    print("\n" + "=" * 60)
+    print("TEST 3: Job Details Retrieval")
+    print("=" * 60)
+
+    url = f"{BASE_URL}/{COUNTRY}/search/1"
+
+    params = {
+        "app_id": ADZUNA_APP_ID,
+        "app_key": ADZUNA_APP_KEY,
+        "results_per_page": 1,
+        "what": "Software Developer",
+        "where": "Mumbai",
+        "content-type": "application/json"
+    }
+
+    try:
+        print("\nFinding a sample job...")
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get('results', [])
+
+            if results:
+                job = results[0]
+                job_id = job.get('id')
+
+                print(f"Found job ID: {job_id}")
+                print("\nJob Details:")
+                print(f"   Title: {job.get('title', 'N/A')}")
+                print(f"   Company: {job.get('company', {}).get('display_name', 'N/A')}")
+                print(f"   Location: {job.get('location', {}).get('display_name', 'N/A')}")
+                print(f"   Category: {job.get('category', {}).get('label', 'N/A')}")
+                print(f"   Contract Type: {job.get('contract_type', 'N/A')}")
+                print(f"   Contract Time: {job.get('contract_time', 'N/A')}")
+
+                print("\nDescription Preview:")
+                description = job.get('description', 'N/A')
+                print(f"   {description[:200]}...")
+
+                return True
+            else:
+                print("No jobs found")
+                return False
+        else:
+            print(f"Search failed: {response.status_code}")
+            return False
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+
+
+def test_advanced_filters():
+    """Test 4: Advanced search with filters"""
+    print("\n" + "=" * 60)
+    print("TEST 4: Advanced Filters")
+    print("=" * 60)
+
+    url = f"{BASE_URL}/{COUNTRY}/search/1"
+
+    test_cases = [
+        {
+            "name": "Full-time Python jobs",
+            "params": {"what": "Python", "where": "Delhi", "full_time": 1}
+        },
+        {
+            "name": "Part-time jobs",
+            "params": {"what": "Developer", "where": "Pune", "part_time": 1}
+        },
+        {
+            "name": "Contract jobs",
+            "params": {"what": "Software Engineer", "where": "Hyderabad", "contract": 1}
+        }
+    ]
+
+    for test in test_cases:
+        params = {
+            "app_id": ADZUNA_APP_ID,
+            "app_key": ADZUNA_APP_KEY,
+            "results_per_page": 3,
+            "content-type": "application/json",
+            **test["params"]
+        }
+
+        try:
+            print(f"\nTesting: {test['name']}...", end=" ")
+            response = requests.get(url, params=params, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                count = data.get('count', 0)
+                print(f"{count} jobs found")
+
+                if data.get('results'):
+                    job = data['results'][0]
+                    print(f"   Sample: {job.get('title')} at {job.get('company', {}).get('display_name', 'Unknown')}")
+            else:
+                print(f"Failed ({response.status_code})")
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+    return True
+
+
+def test_skill_matching():
+    """Test 5: Match jobs to user skills"""
+    print("\n" + "=" * 60)
+    print("TEST 5: Skill Matching Algorithm")
+    print("=" * 60)
+
+    user_skills = {
+        "Python": 0.8,
+        "JavaScript": 0.6,
+        "SQL": 0.7,
+        "Git": 0.5
+    }
+
+    target_role = "Full Stack Developer"
+    location = "Chennai"
+
+    print("\nUser Skills:")
+    for skill, confidence in user_skills.items():
+        print(f"   {skill}: {int(confidence * 100)}%")
+
+    print(f"\nTarget Role: {target_role}")
+    print(f"Location: {location}")
+
+    url = f"{BASE_URL}/{COUNTRY}/search/1"
+
+    params = {
+        "app_id": ADZUNA_APP_ID,
+        "app_key": ADZUNA_APP_KEY,
+        "results_per_page": 10,
+        "what": target_role,
+        "where": location,
+        "content-type": "application/json"
+    }
+
+    try:
+        print("\nSearching for matching jobs...")
+        response = requests.get(url, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            jobs = data.get('results', [])
+
+            print(f"Found {len(jobs)} jobs")
+            print("\nSkill Match Analysis:")
+
+            matched_jobs = []
+
+            for job in jobs:
+                description = (job.get('description', '') + ' ' + job.get('title', '')).lower()
+
+                matched_skills = [skill for skill in user_skills if skill.lower() in description]
+                match_percentage = (len(matched_skills) / len(user_skills)) * 100
+
+                if match_percentage >= 50:
+                    matched_jobs.append({
+                        "title": job.get("title"),
+                        "company": job.get("company", {}).get("display_name", "Unknown"),
+                        "match_percentage": match_percentage,
+                        "matched_skills": matched_skills,
+                        "missing_skills": [s for s in user_skills if s not in matched_skills]
+                    })
+
+            matched_jobs.sort(key=lambda x: x["match_percentage"], reverse=True)
+
+            print("\nTop Matching Jobs:")
+            for i, job in enumerate(matched_jobs[:5], 1):
+                print(f"\n   {i}. {job['title']} at {job['company']}")
+                print(f"      Match: {job['match_percentage']:.1f}%")
+                print(f"      Your Skills: {', '.join(job['matched_skills'])}")
+                print(f"      To Learn: {', '.join(job['missing_skills'])}")
+
+            return len(matched_jobs) > 0
+        else:
+            print(f"Search failed: {response.status_code}")
+            return False
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+
+
+def check_credentials():
+    """Check if API credentials are configured"""
+    print("\n" + "=" * 60)
+    print("CREDENTIAL CHECK")
+    print("=" * 60)
+
+    if ADZUNA_APP_ID == 'YOUR_APP_ID_HERE' or ADZUNA_APP_KEY == 'YOUR_APP_KEY_HERE':
+        print("\nWARNING: Adzuna API credentials not configured!")
+        print("\nTo configure:")
+        print("   1. Sign up at: https://developer.adzuna.com/")
+        print("   2. Get your APP_ID and APP_KEY")
+        print("   3. Add to .env file:")
+        print("      ADZUNA_APP_ID=your_app_id")
+        print("      ADZUNA_APP_KEY=your_app_key")
+        return False
+
+    print(f"\nAPP_ID configured: {ADZUNA_APP_ID[:10]}...")
+    print(f"APP_KEY configured: {ADZUNA_APP_KEY[:10]}...")
+    return True
+
+
+def main():
+    """Run all tests"""
+    print("\n" + "=" * 60)
+    print("ADZUNA API TEST SUITE")
+    print("=" * 60)
+
+    if not check_credentials():
+        return
+
+    print(f"\nTesting API: {BASE_URL}/{COUNTRY}")
+    print("Country: India (IN)")
+
+    test_results = {
+        "Basic Search": test_basic_search(),
+        "Multi-Skill Search": test_skill_based_search(),
+        "Job Details": test_job_details(),
+        "Advanced Filters": test_advanced_filters(),
+        "Skill Matching": test_skill_matching()
+    }
+
+    print("\n" + "=" * 60)
+    print("TEST RESULTS SUMMARY")
+    print("=" * 60)
+
+    total = len(test_results)
+    passed = sum(test_results.values())
+
+    for test_name, result in test_results.items():
+        status = "PASS" if result else "FAIL"
+        print(f"   {test_name:25s} {status}")
+
+    print(f"\nOverall: {passed}/{total} tests passed")
+
+    if passed == total:
+        print("\nAll tests passed. Adzuna API is working correctly.")
+    else:
+        print("\nSome tests failed. Check your credentials and network connection.")
+
+
+if __name__ == "__main__":
+    main()

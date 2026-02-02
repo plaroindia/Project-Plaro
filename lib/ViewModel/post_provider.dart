@@ -4,8 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import '../Model/post.dart';
-
-
+import 'plaro_points_service.dart';
 
 // State class for post creation
 class PostCreateState {
@@ -17,6 +16,7 @@ class PostCreateState {
   final String title;
   final String caption;
   final List<String> tags;
+  final String? domain;
 
   PostCreateState({
     this.isLoading = false,
@@ -27,6 +27,7 @@ class PostCreateState {
     this.title = '',
     this.caption = '',
     this.tags = const [],
+    this.domain,
   });
 
   PostCreateState copyWith({
@@ -38,6 +39,7 @@ class PostCreateState {
     String? title,
     String? caption,
     List<String>? tags,
+    String? domain,
   }) {
     return PostCreateState(
       isLoading: isLoading ?? this.isLoading,
@@ -48,16 +50,18 @@ class PostCreateState {
       title: title ?? this.title,
       caption: caption ?? this.caption,
       tags: tags ?? this.tags,
+      domain: domain ?? this.domain,
     );
   }
 }
 
 // Post Creation Provider
 class PostCreateNotifier extends StateNotifier<PostCreateState> {
-  PostCreateNotifier() : super(PostCreateState());
+  PostCreateNotifier(this._pointsService) : super(PostCreateState());
 
   final SupabaseClient _supabase = Supabase.instance.client;
   final ImagePicker _imagePicker = ImagePicker();
+  final PlaroPointsService _pointsService; // ✅ ADDED
 
   Future<void> pickMedia({bool fromCamera = false}) async {
     try {
@@ -121,6 +125,10 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
     state = state.copyWith(tags: tags);
   }
 
+  void updateDomain(String domain) {
+    state = state.copyWith(domain: domain);
+  }
+
   Future<String?> _uploadFile(XFile file) async {
     try {
       final currentUserId = _supabase.auth.currentUser?.id;
@@ -151,7 +159,7 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
           .from('post-media')
           .getPublicUrl(filePath);
     } catch (e) {
-      print('Upload error: $e'); // For debugging
+      print('Upload error: $e');
       throw Exception('Failed to upload file: $e');
     }
   }
@@ -160,6 +168,18 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
     final currentUserId = _supabase.auth.currentUser?.id;
     if (currentUserId == null) {
       state = state.copyWith(error: 'User not authenticated');
+      return false;
+    }
+
+    // DOMAIN VALIDATION
+    if (state.domain == null || state.domain!.isEmpty) {
+      state = state.copyWith(error: 'Please select a domain');
+      return false;
+    }
+
+    // TAGS VALIDATION
+    if (state.tags.isEmpty) {
+      state = state.copyWith(error: 'Please add at least one tag to help categorize your content');
       return false;
     }
 
@@ -182,7 +202,6 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
           }
         } catch (uploadError) {
           print('Failed to upload file ${i + 1}: $uploadError');
-          // Continue with other files, but log the error
           state = state.copyWith(
             error: 'Failed to upload some media files. Please try again.',
           );
@@ -195,15 +214,31 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
         'user_id': currentUserId,
         'title': state.title.isEmpty ? null : state.title,
         'content': state.content.isEmpty ? null : state.content,
-        'tags': state.tags.isEmpty ? null : state.tags,
+        'tags': state.tags,  // Now mandatory, no need for isEmpty check
+        'domain': state.domain,
         'is_published': true,
         'media_urls': mediaUrls.isEmpty ? null : mediaUrls,
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      await _supabase
+      final response = await _supabase
           .from('post')
-          .insert(postData);
+          .insert(postData)
+          .select('post_id')
+          .single();
+
+      // ✅ ADDED: Award points for creating post
+      final postId = response['post_id'];
+      try {
+        await _pointsService.awardPointsForContent(
+          userId: currentUserId,
+          contentType: 'post',
+          contentId: postId,
+        );
+      } catch (pointsError) {
+        print('Failed to award points: $pointsError');
+        // Don't fail the whole operation if points fail
+      }
 
       state = state.copyWith(
         isLoading: false,
@@ -213,11 +248,12 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
         title: '',
         caption: '',
         tags: [],
+        domain: null,
       );
 
       return true;
     } catch (e) {
-      print('Create post error: $e'); // For debugging
+      print('Create post error: $e');
       String errorMessage = 'Failed to create post';
 
       if (e.toString().contains('StorageException')) {
@@ -243,6 +279,8 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
   }
 }
 
+// ✅ UPDATED: Provider now includes PlaroPointsService from Riverpod
 final postCreateProvider = StateNotifierProvider<PostCreateNotifier, PostCreateState>((ref) {
-  return PostCreateNotifier();
+  final pointsService = ref.read(plaroPointsServiceProvider);
+  return PostCreateNotifier(pointsService);
 });

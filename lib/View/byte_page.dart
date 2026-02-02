@@ -5,6 +5,8 @@ import 'dart:io';
 import '../ViewModel/byte_provider.dart';
 import '../ViewModel/auth_provider.dart';
 import '../ViewModel/setProfileProvider.dart';
+import '../constants/domain_constants.dart';
+
 
 class ByteCreateScreen extends ConsumerStatefulWidget {
   const ByteCreateScreen({super.key});
@@ -15,14 +17,23 @@ class ByteCreateScreen extends ConsumerStatefulWidget {
 
 class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
   final TextEditingController _captionController = TextEditingController();
+  final TextEditingController _tagsController = TextEditingController();
+  final FocusNode _tagsFocusNode = FocusNode();
   final FocusNode _captionFocusNode = FocusNode();
   VideoPlayerController? _videoController;
+
+  String? _selectedDomain;
+  List<String> _tags = [];
 
   @override
   void initState() {
     super.initState();
     _captionController.addListener(() {
       ref.read(byteCreateProvider.notifier).updateCaption(_captionController.text);
+    });
+
+    _tagsController.addListener(() {
+      // Optional: you can add auto-suggestions here
     });
 
     // Load user profile
@@ -38,6 +49,8 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
   void dispose() {
     _captionController.dispose();
     _captionFocusNode.dispose();
+    _tagsController.dispose();
+    _tagsFocusNode.dispose();
     _videoController?.dispose();
     super.dispose();
   }
@@ -50,6 +63,24 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
         _videoController!.setLooping(true);
         _videoController!.play();
       });
+  }
+
+  void _addTag() {
+    final tag = _tagsController.text.trim();
+    if (tag.isNotEmpty && !_tags.contains(tag)) {
+      setState(() {
+        _tags.add(tag);
+      });
+      ref.read(byteCreateProvider.notifier).updateTags(_tags);
+      _tagsController.clear();
+    }
+  }
+
+  void _removeTag(String tag) {
+    setState(() {
+      _tags.remove(tag);
+    });
+    ref.read(byteCreateProvider.notifier).updateTags(_tags);
   }
 
   void _showVideoPicker() {
@@ -121,6 +152,232 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
         ),
       );
     }
+  }
+
+  // Domain Dropdown Widget
+  Widget _buildDomainDropdown() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _selectedDomain == null ? Colors.red.withOpacity(0.5) : Colors.grey[700]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                const Text(
+                  'Domain',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  '*',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedDomain,
+                hint: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Select content domain',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                dropdownColor: Colors.grey[850],
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                items: DomainConstants.domains.map((domain) {
+                  return DropdownMenuItem<String>(
+                    value: domain['value'],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            domain['icon']!,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              domain['label']!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (String? value) {
+                  setState(() {
+                    _selectedDomain = value;
+                  });
+                  if (value != null) {
+                    ref.read(byteCreateProvider.notifier).updateDomain(value);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Tags Input Widget
+  Widget _buildTagsInput() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _tags.isEmpty ? Colors.red.withOpacity(0.5) : Colors.grey[700]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with mandatory indicator
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                const Text(
+                  'Tags',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  '*',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Helper text
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              'Use tags appropriate to your content to help others discover it',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+
+          // Tag Input Row
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _tagsController,
+                  focusNode: _tagsFocusNode,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Add a tag (e.g., tutorial, tips, howto)',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                  onSubmitted: (_) => _addTag(),
+                ),
+              ),
+              IconButton(
+                onPressed: _addTag,
+                icon: const Icon(Icons.add, color: Colors.blue),
+              ),
+            ],
+          ),
+
+          // Tags Display
+          if (_tags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _tags.map((tag) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.blue.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '#$tag',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () => _removeTag(tag),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.blue,
+                            size: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -369,6 +626,8 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
                 ),
               ),
 
+            _buildDomainDropdown(),
+
             // Caption Input
             Container(
               decoration: BoxDecoration(
@@ -401,6 +660,8 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
               ),
             ),
 
+            const SizedBox(height: 16),
+            _buildTagsInput(),
             const SizedBox(height: 24),
 
             // Tips section

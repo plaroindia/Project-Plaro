@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PEARL | Personalize Your Journey</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/onboarding.css">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Left Side - Progress & Preview -->
+    <div class="progress-sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <img src="Assests/plaro_logo.png" alt="PEARL Logo">
+          <span>PEARL</span>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+          <span class="material-icons">dark_mode</span>
+        </button>
+      </div>
+      
+      <div class="progress-section">
+        <div class="progress-indicator">
+          <div class="step-indicator-large">
+            <span class="step-number-large">0<span class="step-total">/4</span></span>
+            <div class="step-info">
+              <span class="step-label-large">Step</span>
+              <span class="step-title-large">Getting Started</span>
+            </div>
+          </div>
+          
+          <div class="progress-visual">
+            <div class="progress-circle">
+              <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle class="progress-bg" cx="60" cy="60" r="54" fill="none" stroke-width="8"/>
+                <circle class="progress-fg" cx="60" cy="60" r="54" fill="none" stroke-width="8" 
+                        stroke-dasharray="339.292" stroke-dashoffset="339.292"/>
+              </svg>
+              <div class="progress-text">
+                <span class="progress-percent">0%</span>
+                <span class="progress-status">Complete</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="steps-list">
+          <div class="step-item active" data-step="1">
+            <div class="step-icon">
+              <span class="material-icons">target</span>
+            </div>
+            <div class="step-details">
+              <span class="step-item-title">Career Goals</span>
+              <span class="step-item-desc">Define your aspirations</span>
+            </div>
+            <span class="step-check">
+              <span class="material-icons">check_circle</span>
+            </span>
+          </div>
+          
+          <div class="step-item" data-step="2">
+            <div class="step-icon">
+              <span class="material-icons">favorite</span>
+            </div>
+            <div class="step-details">
+              <span class="step-item-title">Interests</span>
+              <span class="step-item-desc">Share your passions</span>
+            </div>
+            <span class="step-check">
+              <span class="material-icons">check_circle</span>
+            </span>
+          </div>
+          
+          <div class="step-item" data-step="3">
+            <div class="step-icon">
+              <span class="material-icons">build</span>
+            </div>
+            <div class="step-details">
+              <span class="step-item-title">Skills</span>
+              <span class="step-item-desc">Assess your abilities</span>
+            </div>
+            <span class="step-check">
+              <span class="material-icons">check_circle</span>
+            </span>
+          </div>
+          
+          <div class="step-item" data-step="4">
+            <div class="step-icon">
+              <span class="material-icons">schedule</span>
+            </div>
+            <div class="step-details">
+              <span class="step-item-title">Preferences</span>
+              <span class="step-item-desc">Customize learning</span>
+            </div>
+            <span class="step-check">
+              <span class="material-icons">check_circle</span>
+            </span>
+          </div>
+        </div>
+        
+        <div class="sidebar-footer">
+          <div class="time-estimate">
+            <span class="material-icons">access_time</span>
+            <span>About 5 minutes to complete</span>
+          </div>
+          <div class="saved-status">
+            <span class="material-icons">cloud_done</span>
+            <span>Auto-saved</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side - Form Content -->
+    <div class="content-side">
+      <div class="content-header">
+        <button class="back-btn" onclick="goBack()">
+          <span class="material-icons">arrow_back</span>
+          Back
+        </button>
+        
+        <div class="step-counter">
+          <span class="current-step-large">01</span>
+          <span class="step-divider">/</span>
+          <span class="total-steps-large">04</span>
+        </div>
+      </div>
+      
+      <div class="content-wrapper">
+        <!-- Step 1: Career Goals -->
+        <div class="step-content active" id="step1">
+          <div class="step-intro">
+            <h1 class="step-title">Define Your <span class="highlight">Career Journey</span></h1>
+            <p class="step-subtitle">Tell us about your professional aspirations. This helps us create a personalized path just for you.</p>
+          </div>
+          
+          <form class="onboarding-form">
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">01</span>
+                <h3>Current Position & Aspirations</h3>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group floating">
+                  <input type="text" id="currentRole" placeholder=" " required>
+                  <label for="currentRole">
+                    <span class="material-icons">work_outline</span>
+                    Current Role / Position
+                  </label>
+                  <div class="form-hint">e.g., Software Engineer, Marketing Manager, Student</div>
+                </div>
+                
+                <div class="form-group floating">
+                  <input type="text" id="dreamJob" placeholder=" " required>
+                  <label for="dreamJob">
+                    <span class="material-icons">stars</span>
+                    Dream Job / Target Position
+                  </label>
+                  <div class="form-hint">Where do you see yourself in the future?</div>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group floating">
+                  <textarea id="shortTermGoals" placeholder=" " rows="3" required></textarea>
+                  <label for="shortTermGoals">
+                    <span class="material-icons">timeline</span>
+                    Short-term Goals (6-12 months)
+                  </label>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group floating">
+                  <textarea id="longTermGoals" placeholder=" " rows="3" required></textarea>
+                  <label for="longTermGoals">
+                    <span class="material-icons">travel_explore</span>
+                    Long-term Vision (3-5 years)
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">02</span>
+                <h3>Preferred Timeline</h3>
+              </div>
+              
+              <div class="timeline-cards">
+                <label class="timeline-card">
+                  <input type="radio" name="timeline" value="3months">
+                  <div class="card-content">
+                    <div class="card-icon">⚡</div>
+                    <h4>Quick Boost</h4>
+                    <p>3 months</p>
+                    <span class="card-desc">Rapid skill acquisition</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="timeline-card">
+                  <input type="radio" name="timeline" value="6months">
+                  <div class="card-content">
+                    <div class="card-icon">📈</div>
+                    <h4>Career Transition</h4>
+                    <p>6 months</p>
+                    <span class="card-desc">Role change preparation</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="timeline-card">
+                  <input type="radio" name="timeline" value="1year">
+                  <div class="card-content">
+                    <div class="card-icon">🎯</div>
+                    <h4>Mastery Path</h4>
+                    <p>1 year</p>
+                    <span class="card-desc">Deep skill development</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="timeline-card">
+                  <input type="radio" name="timeline" value="2years">
+                  <div class="card-content">
+                    <div class="card-icon">🚀</div>
+                    <h4>Long-term Growth</h4>
+                    <p>2+ years</p>
+                    <span class="card-desc">Comprehensive development</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 2: Interests -->
+        <div class="step-content" id="step2">
+          <div class="step-intro">
+            <h1 class="step-title">Share Your <span class="highlight">Passions</span></h1>
+            <p class="step-subtitle">What excites you? Your interests help us recommend relevant content and opportunities.</p>
+          </div>
+          
+          <form class="onboarding-form">
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">01</span>
+                <h3>Primary Interests</h3>
+                <span class="section-tag">Select up to 5</span>
+              </div>
+              
+              <div class="interests-input">
+                <div class="input-with-button">
+                  <div class="form-group floating">
+                    <input type="text" id="interestInput" placeholder=" " class="interest-input-field">
+                    <label for="interestInput">
+                      <span class="material-icons">add_circle_outline</span>
+                      Add an interest
+                    </label>
+                  </div>
+                  <button type="button" class="btn-add" onclick="addInterest()">
+                    <span class="material-icons">add</span>
+                  </button>
+                </div>
+                
+                <div class="selected-interests-container">
+                  <div class="selected-interests" id="selectedInterests">
+                    <!-- Interests will appear here -->
+                  </div>
+                  <div class="interests-counter">
+                    <span id="interestsCount">0</span>/5 interests added
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">02</span>
+                <h3>Learning Focus Areas</h3>
+              </div>
+              
+              <div class="form-group floating">
+                <textarea id="learningTopics" placeholder=" " rows="3" required></textarea>
+                <label for="learningTopics">
+                  <span class="material-icons">menu_book</span>
+                  Specific topics you want to learn
+                </label>
+                <div class="form-hint">e.g., Machine Learning, UX Design, Digital Marketing</div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">03</span>
+                <h3>Personal Passions</h3>
+              </div>
+              
+              <div class="form-group floating">
+                <textarea id="hobbies" placeholder=" " rows="2"></textarea>
+                <label for="hobbies">
+                  <span class="material-icons">sports_esports</span>
+                  Hobbies & Activities
+                </label>
+                <div class="form-hint">What do you enjoy doing in your free time?</div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">04</span>
+                <h3>Learning Enthusiasm</h3>
+              </div>
+              
+              <div class="slider-container">
+                <div class="slider-header">
+                  <span>How passionate are you about learning new things?</span>
+                  <span class="slider-value" id="intensityValue">5</span>
+                </div>
+                <div class="slider-wrapper">
+                  <input type="range" min="1" max="10" value="5" class="slider" id="interestIntensity">
+                  <div class="slider-labels">
+                    <span>Casual</span>
+                    <span>Moderate</span>
+                    <span>Very Passionate</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 3: Skills -->
+        <div class="step-content" id="step3">
+          <div class="step-intro">
+            <h1 class="step-title">Assess Your <span class="highlight">Skills</span></h1>
+            <p class="step-subtitle">Understanding your current abilities helps us create the perfect learning path for you.</p>
+          </div>
+          
+          <form class="onboarding-form">
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">01</span>
+                <h3>Current Skills Inventory</h3>
+                <span class="section-tag">Add skills with proficiency</span>
+              </div>
+              
+              <div class="skills-input">
+                <div class="input-group">
+                  <div class="form-group floating">
+                    <input type="text" id="skillInput" placeholder=" " class="skill-input-field">
+                    <label for="skillInput">
+                      <span class="material-icons">add_circle_outline</span>
+                      Skill name
+                    </label>
+                  </div>
+                  
+                  <select class="level-select" id="skillLevelSelect">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate" selected>Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                  
+                  <button type="button" class="btn-add" onclick="addSkill()">
+                    <span class="material-icons">add</span>
+                  </button>
+                </div>
+                
+                <div class="selected-skills-container">
+                  <div class="selected-skills" id="selectedSkills">
+                    <!-- Skills will appear here -->
+                  </div>
+                  <div class="skills-counter">
+                    <span id="skillsCount">0</span> skills added
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">02</span>
+                <h3>Development Goals</h3>
+              </div>
+              
+              <div class="form-group floating">
+                <textarea id="skillGaps" placeholder=" " rows="3" required></textarea>
+                <label for="skillGaps">
+                  <span class="material-icons">trending_up</span>
+                  Skills you want to develop
+                </label>
+                <div class="form-hint">Areas you'd like to improve or learn from scratch</div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">03</span>
+                <h3>Professional Background</h3>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group floating">
+                  <textarea id="certifications" placeholder=" " rows="2"></textarea>
+                  <label for="certifications">
+                    <span class="material-icons">verified</span>
+                    Certifications & Qualifications
+                  </label>
+                </div>
+                
+                <div class="form-group floating">
+                  <select id="experience" required>
+                    <option value=""> </option>
+                    <option value="0-1">0-1 years (Entry Level)</option>
+                    <option value="1-3">1-3 years (Junior)</option>
+                    <option value="3-5">3-5 years (Mid-Level)</option>
+                    <option value="5-8">5-8 years (Senior)</option>
+                    <option value="8+">8+ years (Expert/Leadership)</option>
+                  </select>
+                  <label for="experience">
+                    <span class="material-icons">history</span>
+                    Years of Experience
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">04</span>
+                <h3>Learning Confidence</h3>
+              </div>
+              
+              <div class="confidence-cards">
+                <label class="confidence-card">
+                  <input type="radio" name="confidence" value="low">
+                  <div class="card-content">
+                    <div class="card-icon">🤔</div>
+                    <h4>Need Guidance</h4>
+                    <span class="card-desc">Prefer structured learning with clear direction</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="confidence-card">
+                  <input type="radio" name="confidence" value="medium">
+                  <div class="card-content">
+                    <div class="card-icon">😊</div>
+                    <h4>Balanced</h4>
+                    <span class="card-desc">Mix of guided and independent learning</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="confidence-card">
+                  <input type="radio" name="confidence" value="high">
+                  <div class="card-content">
+                    <div class="card-icon">🚀</div>
+                    <h4>Self-directed</h4>
+                    <span class="card-desc">Comfortable exploring and learning independently</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 4: Preferences -->
+        <div class="step-content" id="step4">
+          <div class="step-intro">
+            <h1 class="step-title">Customize Your <span class="highlight">Learning</span></h1>
+            <p class="step-subtitle">Tailor the learning experience to match your style, schedule, and preferences.</p>
+          </div>
+          
+          <form class="onboarding-form">
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">01</span>
+                <h3>Learning Format Preferences</h3>
+              </div>
+              
+              <div class="preference-grid">
+                <label class="preference-card">
+                  <input type="checkbox" name="format" value="video">
+                  <div class="card-content">
+                    <div class="card-icon">🎥</div>
+                    <h4>Video Courses</h4>
+                    <span class="card-desc">Visual tutorials & lectures</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="preference-card">
+                  <input type="checkbox" name="format" value="reading">
+                  <div class="card-content">
+                    <div class="card-icon">📚</div>
+                    <h4>Reading Materials</h4>
+                    <span class="card-desc">Articles, books, docs</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="preference-card">
+                  <input type="checkbox" name="format" value="interactive">
+                  <div class="card-content">
+                    <div class="card-icon">🎮</div>
+                    <h4>Interactive</h4>
+                    <span class="card-desc">Quizzes & exercises</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+                
+                <label class="preference-card">
+                  <input type="checkbox" name="format" value="projects">
+                  <div class="card-content">
+                    <div class="card-icon">🔨</div>
+                    <h4>Hands-on Projects</h4>
+                    <span class="card-desc">Learn by building</span>
+                  </div>
+                  <span class="card-check">
+                    <span class="material-icons">check_circle</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">02</span>
+                <h3>Learning Style & Schedule</h3>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group floating">
+                  <select id="learningStyle" required>
+                    <option value=""> </option>
+                    <option value="visual">Visual Learner (Learn by seeing)</option>
+                    <option value="auditory">Auditory Learner (Learn by hearing)</option>
+                    <option value="kinesthetic">Kinesthetic Learner (Learn by doing)</option>
+                    <option value="reading">Reading/Writing Learner</option>
+                    <option value="mixed">Mixed Learning Style</option>
+                  </select>
+                  <label for="learningStyle">
+                    <span class="material-icons">person</span>
+                    Primary Learning Style
+                  </label>
+                </div>
+                
+                <div class="form-group floating">
+                  <select id="weeklyHours" required>
+                    <option value=""> </option>
+                    <option value="1-3">1-3 hours per week</option>
+                    <option value="3-5">3-5 hours per week</option>
+                    <option value="5-10">5-10 hours per week</option>
+                    <option value="10-15">10-15 hours per week</option>
+                    <option value="15+">15+ hours per week</option>
+                  </select>
+                  <label for="weeklyHours">
+                    <span class="material-icons">access_time</span>
+                    Weekly Time Commitment
+                  </label>
+                </div>
+              </div>
+              
+              <div class="time-preferences">
+                <div class="time-header">
+                  <span class="material-icons">schedule</span>
+                  <span>Preferred Learning Times</span>
+                </div>
+                <div class="time-options">
+                  <label class="time-option">
+                    <input type="checkbox" name="time" value="morning">
+                    <span class="time-label">
+                      <span class="time-icon">🌅</span>
+                      Morning
+                    </span>
+                    <span class="time-slot">6 AM - 12 PM</span>
+                  </label>
+                  
+                  <label class="time-option">
+                    <input type="checkbox" name="time" value="afternoon">
+                    <span class="time-label">
+                      <span class="time-icon">☀️</span>
+                      Afternoon
+                    </span>
+                    <span class="time-slot">12 PM - 6 PM</span>
+                  </label>
+                  
+                  <label class="time-option">
+                    <input type="checkbox" name="time" value="evening">
+                    <span class="time-label">
+                      <span class="time-icon">🌙</span>
+                      Evening
+                    </span>
+                    <span class="time-slot">6 PM - 12 AM</span>
+                  </label>
+                  
+                  <label class="time-option">
+                    <input type="checkbox" name="time" value="weekend">
+                    <span class="time-label">
+                      <span class="time-icon">📅</span>
+                      Weekends
+                    </span>
+                    <span class="time-slot">Saturday & Sunday</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="section-header">
+                <span class="section-number">03</span>
+                <h3>Motivation & Considerations</h3>
+              </div>
+              
+              <div class="form-group floating">
+                <textarea id="challenges" placeholder=" " rows="2"></textarea>
+                <label for="challenges">
+                  <span class="material-icons">warning</span>
+                  Any learning challenges?
+                </label>
+                <div class="form-hint">e.g., time constraints, accessibility needs, specific requirements</div>
+              </div>
+              
+              <div class="motivation-cards">
+                <label class="motivation-card">
+                  <input type="checkbox" name="motivation" value="certification">
+                  <span class="card-content">
+                    <span class="card-icon">🏆</span>
+                    <span>Certification</span>
+                  </span>
+                </label>
+                
+                <label class="motivation-card">
+                  <input type="checkbox" name="motivation" value="career-advancement">
+                  <span class="card-content">
+                    <span class="card-icon">📈</span>
+                    <span>Career Growth</span>
+                  </span>
+                </label>
+                
+                <label class="motivation-card">
+                  <input type="checkbox" name="motivation" value="personal-growth">
+                  <span class="card-content">
+                    <span class="card-icon">🌱</span>
+                    <span>Personal Development</span>
+                  </span>
+                </label>
+                
+                <label class="motivation-card">
+                  <input type="checkbox" name="motivation" value="problem-solving">
+                  <span class="card-content">
+                    <span class="card-icon">🔧</span>
+                    <span>Problem Solving</span>
+                  </span>
+                </label>
+                
+                <label class="motivation-card">
+                  <input type="checkbox" name="motivation" value="community">
+                  <span class="card-content">
+                    <span class="card-icon">👥</span>
+                    <span>Community</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Navigation Footer -->
+      <div class="content-footer">
+        <div class="footer-left">
+          <button class="btn-skip" onclick="skipOnboarding()">
+            Skip for now
+          </button>
+        </div>
+        
+        <div class="footer-right">
+          <button class="btn-outline" id="prevBtn" style="display: none;">
+            <span class="material-icons">arrow_back</span>
+            Previous
+          </button>
+          
+          <button class="btn-primary" id="nextBtn">
+            Continue
+            <span class="material-icons">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div class="modal-overlay" id="successModal">
+    <div class="modal-content">
+      <div class="modal-success">
+        <div class="success-animation">
+          <div class="success-icon">
+            <span class="material-icons">check</span>
+          </div>
+          <div class="success-rings">
+            <div class="ring ring-1"></div>
+            <div class="ring ring-2"></div>
+            <div class="ring ring-3"></div>
+          </div>
+        </div>
+        
+        <div class="modal-header">
+          <h2>Journey Personalized! 🎉</h2>
+          <p class="modal-subtitle">Your learning path is ready. Let's start this exciting journey together!</p>
+        </div>
+        
+        <div class="modal-body">
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-icon">
+                <span class="material-icons">target</span>
+              </div>
+              <div class="summary-content">
+                <h4>Career Goal</h4>
+                <p id="summaryCareerGoal">Loading...</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="summary-icon">
+                <span class="material-icons">favorite</span>
+              </div>
+              <div class="summary-content">
+                <h4>Top Interests</h4>
+                <p id="summaryInterests">Loading...</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="summary-icon">
+                <span class="material-icons">build</span>
+              </div>
+              <div class="summary-content">
+                <h4>Skill Level</h4>
+                <p id="summarySkills">Loading...</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="summary-icon">
+                <span class="material-icons">schedule</span>
+              </div>
+              <div class="summary-content">
+                <h4>Learning Style</h4>
+                <p id="summaryLearningStyle">Loading...</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="personalized-note">
+            <span class="material-icons">auto_awesome</span>
+            <p>Based on your preferences, we've curated <strong>125+ personalized resources</strong> and created a <strong>custom 12-week learning plan</strong> just for you.</p>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn-outline" onclick="window.location.href='dashboard.html'">
+            Explore Dashboard
+          </button>
+          <button class="btn-primary" onclick="window.location.href='learning-path.html'">
+            Start Learning Journey
+            <span class="material-icons">rocket_launch</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS -->
+   <script src="js/api-config"></script>
+  <script src="js/onboarding.js"></script>
+</body>
+</html>

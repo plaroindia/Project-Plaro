@@ -1,7 +1,7 @@
 import google.generativeai as genai
 
 # Configure with your API key
-genai.configure(api_key="AIzaSyDwaOGPwZzFB7uViqdYFIMtIfFNuyAncuY")
+genai.configure(api_key="AIzaSyD0bFYOkkJC9r73HEr2B5Jq-V6MIQUtN1U")
 
 try:
     # print("📋 Listing all available Gemini models:\n")

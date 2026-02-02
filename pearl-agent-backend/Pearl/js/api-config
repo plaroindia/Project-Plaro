@@ -1,0 +1,508 @@
+/**
+ * PEARL Backend API Configuration
+ * Central configuration for all API calls
+ */
+
+const API_CONFIG = {
+  // Base URL - Change this to your deployed backend URL
+  BASE_URL: 'http://localhost:8000',
+  
+  // API Endpoints
+  ENDPOINTS: {
+    // Authentication
+    AUTH: {
+      SIGNUP: '/auth/signup',
+      SIGNIN: '/auth/signin',
+      SIGNOUT: '/auth/signout',
+      OAUTH: '/auth/oauth'
+    },
+    
+    // PEARL Agent
+    AGENT: {
+      START_JOURNEY: '/agent/start-journey',
+      UNLOCK_MODULE: '/agent/unlock-module',
+      COMPLETE_ACTION: '/agent/complete-action',
+      SUBMIT_CHECKPOINT: '/agent/submit-checkpoint',
+      GET_SESSION: '/agent/session'
+    },
+    
+    // Onboarding
+    ONBOARDING: {
+      START: '/api/onboarding/start',
+      STATUS: '/api/onboarding/status'
+    },
+    
+    // Gamification
+    GAMIFICATION: {
+      SUMMARY: '/api/gamification/summary',
+      LEADERBOARD: '/api/gamification/leaderboard',
+      AWARD_POINTS: '/api/gamification/award-points'
+    },
+    
+    // Content
+    CONTENT: {
+      RECOMMENDATIONS: '/api/recommendations/content',
+      FEED: '/api/feed/personalized'
+    }
+  },
+  
+  // Request timeout in milliseconds
+  TIMEOUT: 30000,
+  
+  // Headers
+  getHeaders: function(includeAuth = true) {
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (includeAuth) {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    
+    return headers;
+  }
+};
+
+/**
+ * API Helper Class
+ * Wrapper for fetch API with error handling
+ */
+class APIHelper {
+  /**
+   * Make GET request
+   */
+  static async get(endpoint, includeAuth = true) {
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+        method: 'GET',
+        headers: API_CONFIG.getHeaders(includeAuth),
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+      });
+      
+      return await this.handleResponse(response);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+  
+  /**
+   * Make POST request
+   */
+  static async post(endpoint, data, includeAuth = true) {
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: API_CONFIG.getHeaders(includeAuth),
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+      });
+      
+      return await this.handleResponse(response);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+  
+  /**
+   * Make PUT request
+   */
+  static async put(endpoint, data, includeAuth = true) {
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+        method: 'PUT',
+        headers: API_CONFIG.getHeaders(includeAuth),
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+      });
+      
+      return await this.handleResponse(response);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+  
+  /**
+   * Make DELETE request
+   */
+  static async delete(endpoint, includeAuth = true) {
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+        method: 'DELETE',
+        headers: API_CONFIG.getHeaders(includeAuth),
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+      });
+      
+      return await this.handleResponse(response);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+  
+  /**
+   * Handle API response
+   */
+  static async handleResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        message: data.detail || data.message || 'Request failed',
+        data: data
+      };
+    }
+    
+    return {
+      success: true,
+      data: data,
+      status: response.status
+    };
+  }
+  
+  /**
+   * Handle API errors
+   */
+  static handleError(error) {
+    console.error('API Error:', error);
+    
+    if (error.name === 'AbortError') {
+      return {
+        success: false,
+        error: 'Request timeout',
+        message: 'The request took too long. Please try again.'
+      };
+    }
+    
+    if (error.status === 401) {
+      // Unauthorized - clear auth and redirect to login
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_data');
+      window.location.href = '/login.html';
+      return {
+        success: false,
+        error: 'Unauthorized',
+        message: 'Please login again.'
+      };
+    }
+    
+    return {
+      success: false,
+      error: error.message || 'Unknown error',
+      message: error.message || 'Something went wrong. Please try again.',
+      status: error.status
+    };
+  }
+}
+
+/**
+ * Authentication Service
+ */
+const AuthService = {
+  /**
+   * Sign up new user
+   */
+  async signup(email, password, username) {
+    const result = await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AUTH.SIGNUP,
+      { email, password, username },
+      false
+    );
+    
+    if (result.success) {
+      // Store auth data
+      this.storeAuthData(result.data);
+    }
+    
+    return result;
+  },
+  
+  /**
+   * Sign in existing user
+   */
+  async signin(email, password) {
+    const result = await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AUTH.SIGNIN,
+      { email, password },
+      false
+    );
+    
+    if (result.success) {
+      // Store auth data
+      this.storeAuthData(result.data);
+    }
+    
+    return result;
+  },
+  
+  /**
+   * Sign out user
+   */
+  async signout() {
+    const result = await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AUTH.SIGNOUT,
+      {}
+    );
+    
+    // Clear local storage regardless of result
+    this.clearAuthData();
+    
+    return result;
+  },
+  
+  /**
+   * OAuth sign in
+   */
+  async oauthSignin(provider) {
+    const result = await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AUTH.OAUTH,
+      { provider },
+      false
+    );
+    
+    if (result.success && result.data.url) {
+      // Redirect to OAuth provider
+      window.location.href = result.data.url;
+    }
+    
+    return result;
+  },
+  
+  /**
+   * Store authentication data
+   */
+  storeAuthData(data) {
+    if (data.session && data.session.access_token) {
+      localStorage.setItem('access_token', data.session.access_token);
+    }
+    
+    if (data.user) {
+      localStorage.setItem('user_data', JSON.stringify(data.user));
+    }
+  },
+  
+  /**
+   * Clear authentication data
+   */
+  clearAuthData() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('session_id');
+  },
+  
+  /**
+   * Check if user is authenticated
+   */
+  isAuthenticated() {
+    return !!localStorage.getItem('access_token');
+  },
+  
+  /**
+   * Get current user data
+   */
+  getCurrentUser() {
+    const userData = localStorage.getItem('user_data');
+    return userData ? JSON.parse(userData) : null;
+  }
+};
+
+/**
+ * PEARL Agent Service
+ */
+const PearlAgentService = {
+  /**
+   * Start learning journey
+   */
+  async startJourney(goal, jdText = null) {
+    const user = AuthService.getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    const result = await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AGENT.START_JOURNEY,
+      {
+        goal: goal,
+        user_id: user.id,
+        jd_text: jdText
+      }
+    );
+    
+    if (result.success && result.data.session_id) {
+      // Store session ID
+      localStorage.setItem('session_id', result.data.session_id);
+    }
+    
+    return result;
+  },
+  
+  /**
+   * Unlock module
+   */
+  async unlockModule(skill, moduleId) {
+    const sessionId = localStorage.getItem('session_id');
+    const user = AuthService.getCurrentUser();
+    
+    if (!sessionId || !user) {
+      return { success: false, error: 'No active session' };
+    }
+    
+    return await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AGENT.UNLOCK_MODULE,
+      {
+        session_id: sessionId,
+        skill: skill,
+        module_id: moduleId,
+        user_id: user.id
+      }
+    );
+  },
+  
+  /**
+   * Complete action
+   */
+  async completeAction(skill, moduleId, actionIndex, completionData) {
+    const sessionId = localStorage.getItem('session_id');
+    const user = AuthService.getCurrentUser();
+    
+    if (!sessionId || !user) {
+      return { success: false, error: 'No active session' };
+    }
+    
+    return await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AGENT.COMPLETE_ACTION,
+      {
+        session_id: sessionId,
+        skill: skill,
+        module_id: moduleId,
+        action_index: actionIndex,
+        completion_data: completionData,
+        user_id: user.id
+      }
+    );
+  },
+  
+  /**
+   * Submit checkpoint answers
+   */
+  async submitCheckpoint(skill, moduleId, answers) {
+    const sessionId = localStorage.getItem('session_id');
+    const user = AuthService.getCurrentUser();
+    
+    if (!sessionId || !user) {
+      return { success: false, error: 'No active session' };
+    }
+    
+    return await APIHelper.post(
+      API_CONFIG.ENDPOINTS.AGENT.SUBMIT_CHECKPOINT,
+      {
+        session_id: sessionId,
+        skill: skill,
+        module_id: moduleId,
+        answers: answers,
+        user_id: user.id
+      }
+    );
+  },
+  
+  /**
+   * Get session details
+   */
+  async getSession(sessionId) {
+    return await APIHelper.get(
+      `${API_CONFIG.ENDPOINTS.AGENT.GET_SESSION}/${sessionId}`
+    );
+  }
+};
+
+/**
+ * Onboarding Service
+ */
+const OnboardingService = {
+  /**
+   * Start onboarding
+   */
+  async startOnboarding(data) {
+    return await APIHelper.post(
+      API_CONFIG.ENDPOINTS.ONBOARDING.START,
+      data
+    );
+  },
+  
+  /**
+   * Get onboarding status
+   */
+  async getStatus(userId) {
+    return await APIHelper.get(
+      `${API_CONFIG.ENDPOINTS.ONBOARDING.STATUS}/${userId}`
+    );
+  }
+};
+
+/**
+ * Gamification Service
+ */
+const GamificationService = {
+  /**
+   * Get user gamification summary
+   */
+  async getSummary(userId) {
+    return await APIHelper.get(
+      `${API_CONFIG.ENDPOINTS.GAMIFICATION.SUMMARY}/${userId}`
+    );
+  },
+  
+  /**
+   * Get leaderboard
+   */
+  async getLeaderboard(limit = 20) {
+    return await APIHelper.get(
+      `${API_CONFIG.ENDPOINTS.GAMIFICATION.LEADERBOARD}?limit=${limit}`
+    );
+  }
+};
+
+/**
+ * Content Service
+ */
+const ContentService = {
+  /**
+   * Get content recommendations
+   */
+  async getRecommendations(skill, contentType = null, difficulty = null) {
+    const params = new URLSearchParams({
+      skill: skill
+    });
+    
+    if (contentType) params.append('content_type', contentType);
+    if (difficulty) params.append('difficulty', difficulty);
+    
+    return await APIHelper.get(
+      `${API_CONFIG.ENDPOINTS.CONTENT.RECOMMENDATIONS}?${params}`
+    );
+  },
+  
+  /**
+   * Get personalized feed
+   */
+  async getPersonalizedFeed(userId, page = 1, limit = 10) {
+    return await APIHelper.get(
+      `${API_CONFIG.ENDPOINTS.CONTENT.FEED}/${userId}?page=${page}&limit=${limit}`
+    );
+  }
+};
+
+// Export for use in other files
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    API_CONFIG,
+    APIHelper,
+    AuthService,
+    PearlAgentService,
+    OnboardingService,
+    GamificationService,
+    ContentService
+  };
+}

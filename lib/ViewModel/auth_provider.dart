@@ -24,7 +24,7 @@ class AuthController {
   );
 
   AuthController(this.ref);
-  
+
   Future<bool> login({required String email, required String password}) async {
     try {
       final response = await ref
@@ -44,11 +44,12 @@ class AuthController {
     required String password,
   }) async {
     try {
-      // Call Edge Function to create user and send OTP
+      // ✅ Call Edge Function with password to create user and send OTP
       final response = await Supabase.instance.client.functions.invoke(
         'send-otp',
         body: {
           'email': email,
+          'password': password, // ✅ Include password
           'purpose': 'signup',
         },
       );
@@ -98,7 +99,7 @@ class AuthController {
         // Check if this is a new user by checking metadata
         final user = response.user;
         final isNewUser = user?.userMetadata?['onboarding_complete'] == null;
-        
+
         if (isNewUser) {
           // Set initial metadata
           await Supabase.instance.client.auth.updateUser(
@@ -125,7 +126,7 @@ class AuthController {
   /// Check if onboarding is complete
   bool _checkOnboardingComplete(User? user) {
     if (user == null) return false;
-    
+
     // Check user metadata
     final metadata = user.userMetadata?['onboarding_complete'];
     return metadata == true;

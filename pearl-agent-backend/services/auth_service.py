@@ -1,13 +1,13 @@
 """
 Authentication Service for PEARL Agent
 Handles Supabase Auth (OAuth + Email/Password)
+FIXED: Proper user creation flow and error handling
 """
 
 from supabase import create_client, Client
 from config import get_settings
 from typing import Optional, Dict
-import jwt
-from datetime import datetime, timedelta
+from datetime import datetime
 
 settings = get_settings()
 
@@ -21,10 +21,21 @@ class AuthService:
     def sign_up_email(self, email: str, password: str, username: str) -> Dict:
         """
         Sign up with email and password
-        Creates user profile automatically
+        Creates user in auth.users first, then profile
         """
         try:
-            # Sign up user
+            # Check if username already exists
+            existing = self.client.table('user_profiles').select('username').eq(
+                'username', username
+            ).execute()
+            
+            if existing.data:
+                return {
+                    "success": False,
+                    "error": "Username already taken"
+                }
+            
+            # Sign up user (creates in auth.users automatically)
             auth_response = self.client.auth.sign_up({
                 "email": email,
                 "password": password,
@@ -35,35 +46,58 @@ class AuthService:
                 }
             })
             
-            if auth_response.user:
-                user_id = auth_response.user.id
-                
-                # Create user profile
-                profile_data = {
-                    "user_id": user_id,
-                    "username": username,
-                    "email": email,
-                    "role": "learner",
-                    "streak_count": 0,
-                    "followers_count": 0,
-                    "following_count": 0
-                }
-                
-                self.client.table('user_profiles').insert(profile_data).execute()
-                
+            if not auth_response.user:
                 return {
-                    "success": True,
-                    "user": {
-                        "id": user_id,
-                        "email": email,
-                        "username": username
-                    },
-                    "session": auth_response.session
+                    "success": False,
+                    "error": "Sign up failed"
                 }
             
+            user_id = auth_response.user.id
+            
+            # Create user profile (user_id references auth.users)
+            profile_data = {
+                "user_id": user_id,
+                "username": username,
+                "email": email,
+                "role": "learner",
+                "streak_count": 0,
+                "followers_count": 0,
+                "following_count": 0,
+                "onboarding_complete": False,
+                "is_verified": False
+            }
+            
+            profile_result = self.client.table('user_profiles').insert(profile_data).execute()
+            
+            if not profile_result.data:
+                # Rollback: delete auth user if profile creation fails
+                print(f"[ERROR] Profile creation failed, user created in auth but not in profiles")
+                return {
+                    "success": False,
+                    "error": "Profile creation failed"
+                }
+            
+            # Initialize user_profile_rank
+            rank_data = {
+                "user_id": user_id,
+                "total_points": 0,
+                "rank_level": "beginner",
+                "consistency_score": 0.5,
+                "authenticity_score": 0.5,
+                "contribution_score": 0.5,
+                "freelance_eligible": False,
+                "verified_educator": False
+            }
+            self.client.table('user_profile_rank').insert(rank_data).execute()
+            
             return {
-                "success": False,
-                "error": "Sign up failed"
+                "success": True,
+                "user": {
+                    "id": user_id,
+                    "email": email,
+                    "username": username
+                },
+                "session": auth_response.session
             }
             
         except Exception as e:
@@ -81,26 +115,26 @@ class AuthService:
                 "password": password
             })
             
-            if auth_response.user:
-                # Get user profile
-                profile = self.client.table('user_profiles').select('*').eq(
-                    'user_id', auth_response.user.id
-                ).single().execute()
-                
+            if not auth_response.user:
                 return {
-                    "success": True,
-                    "user": {
-                        "id": auth_response.user.id,
-                        "email": auth_response.user.email,
-                        "username": profile.data.get('username') if profile.data else None,
-                        "profile": profile.data
-                    },
-                    "session": auth_response.session
+                    "success": False,
+                    "error": "Invalid credentials"
                 }
             
+            # Get user profile
+            profile = self.client.table('user_profiles').select('*').eq(
+                'user_id', auth_response.user.id
+            ).single().execute()
+            
             return {
-                "success": False,
-                "error": "Invalid credentials"
+                "success": True,
+                "user": {
+                    "id": auth_response.user.id,
+                    "email": auth_response.user.email,
+                    "username": profile.data.get('username') if profile.data else None,
+                    "profile": profile.data
+                },
+                "session": auth_response.session
             }
             
         except Exception as e:
@@ -135,6 +169,62 @@ class AuthService:
                 "error": str(e)
             }
     
+    def handle_oauth_callback(self, user_id: str, email: str, username: str = None) -> Dict:
+        """
+        Handle OAuth callback - create profile if doesn't exist
+        Called after OAuth provider returns
+        """
+        try:
+            # Check if profile exists
+            existing = self.client.table('user_profiles').select('*').eq(
+                'user_id', user_id
+            ).execute()
+            
+            if existing.data:
+                return {
+                    "success": True,
+                    "existing_user": True,
+                    "profile": existing.data[0]
+                }
+            
+            # Create new profile for OAuth user
+            if not username:
+                username = email.split('@')[0] + '_' + user_id[:8]
+            
+            profile_data = {
+                "user_id": user_id,
+                "username": username,
+                "email": email,
+                "role": "learner",
+                "streak_count": 0,
+                "followers_count": 0,
+                "following_count": 0,
+                "onboarding_complete": False
+            }
+            
+            profile = self.client.table('user_profiles').insert(profile_data).execute()
+            
+            # Initialize rank
+            rank_data = {
+                "user_id": user_id,
+                "total_points": 0,
+                "rank_level": "beginner"
+            }
+            self.client.table('user_profile_rank').insert(rank_data).execute()
+            
+            return {
+                "success": True,
+                "existing_user": False,
+                "profile": profile.data[0] if profile.data else None
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] OAuth callback handling failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     def sign_out(self, access_token: str) -> Dict:
         """Sign out user"""
         try:
@@ -152,19 +242,19 @@ class AuthService:
         try:
             user = self.client.auth.get_user(access_token)
             
-            if user:
-                # Get full profile
-                profile = self.client.table('user_profiles').select('*').eq(
-                    'user_id', user.id
-                ).single().execute()
-                
-                return {
-                    "id": user.id,
-                    "email": user.email,
-                    "profile": profile.data if profile.data else None
-                }
+            if not user:
+                return None
             
-            return None
+            # Get full profile
+            profile = self.client.table('user_profiles').select('*').eq(
+                'user_id', user.id
+            ).single().execute()
+            
+            return {
+                "id": user.id,
+                "email": user.email,
+                "profile": profile.data if profile.data else None
+            }
             
         except Exception as e:
             print(f"[ERROR] Get user failed: {e}")
@@ -194,7 +284,7 @@ class AuthService:
             }
     
     def get_user_profile(self, user_id: str) -> Optional[Dict]:
-        """Get complete user profile with skills"""
+        """Get complete user profile with skills and rank"""
         try:
             # Get profile
             profile = self.client.table('user_profiles').select('*').eq(
@@ -209,6 +299,11 @@ class AuthService:
                 'user_id', user_id
             ).order('confidence_score', desc=True).execute()
             
+            # Get rank
+            rank = self.client.table('user_profile_rank').select('*').eq(
+                'user_id', user_id
+            ).single().execute()
+            
             # Get active sessions
             sessions = self.client.table('ai_agent_sessions').select('*').eq(
                 'user_id', user_id
@@ -217,6 +312,7 @@ class AuthService:
             return {
                 "profile": profile.data,
                 "skills": skills.data if skills.data else [],
+                "rank": rank.data if rank.data else None,
                 "active_sessions": sessions.data if sessions.data else []
             }
             

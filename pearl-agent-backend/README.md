@@ -1,109 +1,156 @@
-# PEARL Agent - Agentic Career Mentor
+# 🚀 PEARL – From Skills to Jobs, Intelligently
+💡 What is Pearl?
 
-An AI-powered career mentoring system that breaks down career goals into actionable, module-based learning paths with built-in progress tracking and checkpoint assessments.
+Pearl is an AI-powered web & mobile platform(Plaro) that guides users from:
+skill assessment → learning → real-world projects → resume → job recommendations.
+A working MVP already exists.
 
-## 🎯 Overview
+## Problem
 
-PEARL (Personalized Educational Agentic Roadmap & Learning) Agent transforms abstract career goals into structured, bite-sized learning modules. Instead of overwhelming learners with lengthy roadmaps, PEARL decomposes skills into 4-6 granular modules, each containing specific actions:
+### Learners struggle to:
 
-- **Byte** 📱 - Quick 2-5 minute explainer videos
-- **Course** 📚 - Structured 30-60 minute learning sessions
-- **Taiken** ⚡ - Hands-on practice with real projects
-- **Checkpoint** ✅ - Knowledge verification quizzes
+Identify missing skills
 
-## ✨ Key Features
+Follow a clear career roadmap
 
-### 🧠 Intelligent Module Decomposition
-- Breaks complex skills into digestible 2-4 hour modules
-- Progressive difficulty scaling based on user confidence
-- Clear prerequisites and learning objectives
+Gain real-world project experience
 
-### 🎓 Multi-Modal Learning Actions
-- **Byte Actions**: Quick explainers from curated sources (YouTube, articles)
-- **Course Actions**: Comprehensive courses (freeCodeCamp, Coursera, Udemy)
-- **Taiken Actions**: Interactive coding environments (Replit, CodePen, Kaggle)
-- **Checkpoint Actions**: AI-generated quizzes to validate understanding
+Build industry-ready resumes
 
-### 🔒 Progress Enforcement
-- Modules unlock sequentially after checkpoint completion
-- 70% pass threshold ensures comprehension before advancement
-- Detailed feedback on quiz performance
-- Skill confidence tracking
+Find jobs aligned with their skills
 
-### 🗄️ Persistent Learning State
-- All progress saved to Supabase database
-- Module completion tracking
-- Action-level progress monitoring
-- Checkpoint results with detailed analytics
+## Our Solution (End-to-End Career Journey)
 
-### 🎨 Interactive Frontend
-- Clean, modern UI with visual progress indicators
-- Real-time action completion tracking
-- Dynamic module unlocking
-- Comprehensive progress dashboard
+Assess user skills & career goals
+
+Identify skill gaps using AI
+
+Generate a personalized career roadmap
+
+Provide real-world project experience
+
+Auto-build resumes
+
+Recommend skill-matched jobs
+
+## ✨ Key Innovations (Why Pearl is Different)
+🤖 1. AI Skill Gap Analysis
+
+Compares user skills with industry requirements and shows what to retain, improve, and acquire.
+
+🗺️ 2. Personalized Career Roadmap
+
+Adaptive roadmap with milestones based on user progress and feedback.
+
+🛠️ 3. Project Suggestion Engine
+
+After 2–3 weeks of learning, users receive real-world, role-specific projects to gain hands-on experience.
+
+🎭 4. Taiken – Real-Time Role-Based Scenario Learning
+
+Users learn by stepping into real job roles (HR, Developer, Analyst) and experiencing real workplace scenarios that motivate learning.
+
+📄 5. Auto Resume Builder
+
+Resumes are automatically generated and updated using skills, projects, and assessments.
+
+💼 6. Real-Time Job Recommendations
+
+Jobs are recommended based on completed roadmap, projects, and resume readiness.
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐
-│  User Input     │ Career Goal / Job Description
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Gemini AI      │ Parse Goal → Extract Skills
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  PEARL Agent    │ Decompose Skills → Create Modules
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Action Router  │ Generate Learning Actions
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  RAG Service    │ Attach Real External Resources
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Checkpoint     │ Generate & Evaluate Quizzes
-│  System         │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Supabase DB    │ Persist Learning State
-└─────────────────┘
+┌──────────────────────────────┐
+│           USER                │
+│ • Enter Skills                │
+│ • Career Goal                 │
+│ • Feedback (stress, interest) │
+└─────────────┬────────────────┘
+              │
+              ▼
+┌──────────────────────────────┐
+│        PEARL PLATFORM         │
+│ • Central orchestration       │
+│ • Routes data to AI Agents    │
+│ • Manages learning & projects │
+└─────────────┬────────────────┘
+              │
+              ▼
+┌──────────────────────────────┐
+│        AI AGENT LAYER        │
+│ • Skill Gap Agent            │
+│ • Project Suggestion Agent   │
+│ • Job Recommendation Agent   │
+└─────────────┬────────────────┘
+              │
+              ▼
+┌──────────────────────────────┐
+│    LEARNING & PROJECTS        │
+│ • Taiken: Role-based Scenarios│
+│ • Courses & Practice Modules  │
+│ • Real-World Projects         │
+└─────────────┬────────────────┘
+              │
+              ▼
+┌──────────────────────────────┐
+│       AUTO RESUME BUILDER     │
+│ • Generates Resume from Skills│
+│   Projects & Assessments      │
+│ • Updates Dynamically         │
+└─────────────┬────────────────┘
+              │
+              ▼
+┌──────────────────────────────┐
+│       JOB RECOMMENDATIONS     │
+│ • Personalized Jobs           │
+│ • Matches Skills, Projects,   │
+│   Resume                      │
+└──────────────────────────────┘
+
+
 ```
 
 ## 🛠️ Tech Stack
 
-**Backend:**
-- FastAPI - High-performance Python web framework
-- Google Gemini AI - Natural language processing and content generation
-- Supabase - PostgreSQL database with real-time capabilities
-- Pydantic - Data validation and settings management
+### AI & Intelligence
+- **Pearl AI Engine** – Core intelligence layer for skill analysis, roadmap generation, and job matching  
+- **Google Gemini API** – Natural language understanding, content generation, and learning recommendations  
 
-**Frontend:**
-- Vanilla JavaScript - Lightweight, no framework dependencies
-- Modern CSS - Responsive design with gradient themes
-- HTML5 - Semantic markup
+### APIs & Integrations
+- **Adzuna API** – Real-time job market data and personalized job recommendations  
+- **edX API** – Access to structured learning resources and course metadata  
 
-**Deployment:**
-- Vercel - Serverless deployment platform
-- Environment-based configuration
+### Backend
+- **Python** – Core backend logic and AI orchestration  
+- **FastAPI** – High-performance API framework for agent-based workflows  
+- **Supabase (PostgreSQL)** – Authentication, database, and real-time data storage  
+
+### Frontend
+- **HTML5** – Semantic structure  
+- **CSS3** – Responsive and modern UI styling  
+- **JavaScript** – Dynamic user interactions and data handling  
+
+### Mobile Application
+- **Dart** – Cross-platform mobile development language  
+- **Flutter** – Mobile app framework for Android and iOS  
+
+### Development Tools
+- **VS Code** – Primary development environment  
+- **Git & GitHub** – Version control and collaboration  
+
+### Deployment & Hosting
+- **Vercel** – Serverless deployment for web services  
+- **Environment-Based Configuration** – Secure and scalable deployment setup  
 
 ## 📦 Installation
 
 ### Prerequisites
+Ensure you have the following installed and configured:
 - Python 3.12+
 - Supabase account
 - Google Gemini API key
+- Adzuna API access
 
 ### Setup
 
@@ -129,6 +176,9 @@ Required variables:
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_anon_key
 GEMINI_API_KEY=your_gemini_api_key
+ADZUNA_APP_ID=your_adzuna_app_id
+ADZUNA_API_KEY=your_adzuna_api_key
+EDX_API_KEY=your_edx_api_key
 DEMO_USER_ID=your_user_id
 ENVIRONMENT=development
 ```
@@ -160,6 +210,9 @@ In Vercel dashboard → Settings → Environment Variables:
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
 - `GEMINI_API_KEY`
+- ADZUNA_APP_ID
+- ADZUNA_API_KEY
+- EDX_API_KEY
 - `DEMO_USER_ID`
 - `ENVIRONMENT=production`
 

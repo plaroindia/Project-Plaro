@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ResetPasswordPage extends StatefulWidget {
-  final String? resetToken; // Made optional to handle both OTP and deep link flows
+  final String? resetToken;
 
   const ResetPasswordPage({super.key, this.resetToken});
 
@@ -19,81 +19,293 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool _obscureConfirmPassword = true;
 
   @override
-  void dispose() {
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    // Try to set session with reset token if provided
+    _initializeSession();
   }
 
-Future<void> _resetPassword() async {
+  Future<void> _initializeSession() async {
+    if (widget.resetToken != null && widget.resetToken!.isNotEmpty) {
+      try {
+        await Supabase.instance.client.auth.setSession(widget.resetToken!);
+        print('Session initialized with reset token');
+      } catch (e) {
+        print('Could not initialize session: $e');
+        // Don't show error here - user can still try
+      }
+    }
+  }
+
+  Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
 
     try {
-      if (widget.resetToken != null) {
-        // Use the token from OTP verification
-        final response = await Supabase.instance.client.auth.verifyOTP(
-          type: OtpType.recovery,
-          token: widget.resetToken!,
-          email: '', // Not needed with token
-        );
+      // Check current session status
+      final currentSession = Supabase.instance.client.auth.currentSession;
+      final currentUser = Supabase.instance.client.auth.currentUser;
 
-        if (response.session != null) {
-          // Now update the password
-          await Supabase.instance.client.auth.updateUser(
-            UserAttributes(password: _passwordController.text),
-          );
-        } else {
-          throw Exception('Failed to verify reset token');
-        }
-      } else {
-        // Fallback: user is already authenticated
-        await Supabase.instance.client.auth.updateUser(
-          UserAttributes(password: _passwordController.text),
-        );
+      print('Current session exists: ${currentSession != null}');
+      print('Current user: ${currentUser?.email}');
+
+      if (currentSession == null || currentUser == null) {
+        // No valid session - need to re-authenticate
+        throw Exception('Session expired. Please request a new reset link.');
       }
+
+      // Update password
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(
+          password: _passwordController.text,
+        ),
+      );
+
+      print('Password updated successfully');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Password updated successfully!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      // Show success message
+      _showSuccessMessage();
 
       // Sign out and navigate to login
-      await Supabase.instance.client.auth.signOut();
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      }
+      await _completeResetFlow();
+
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(child: Text('Error: ${e.toString()}')),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      print('Reset Password Error: $e');
+
+      if (mounted) {
+        String errorMessage = 'Failed to reset password';
+
+        if (e.toString().contains('JWT expired') ||
+            e.toString().contains('session expired') ||
+            e.toString().contains('expired')) {
+          errorMessage = 'Reset link has expired. Please request a new password reset.';
+        } else if (e.toString().contains('invalid')) {
+          errorMessage = 'Invalid reset link. Please request a new one.';
+        } else if (e.toString().contains('weak')) {
+          errorMessage = 'Password is too weak. Please use a stronger password.';
+        }
+
+        _showErrorMessage(errorMessage);
+
+        // If token expired, show option to request new reset link
+        if (e.toString().contains('expired') || e.toString().contains('JWT')) {
+          _showTokenExpiredDialog();
+        }
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  void _showSuccessMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Password Updated!',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Your password has been reset successfully.',
+                    style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  void _showTokenExpiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Link Expired'),
+        content: const Text(
+          'Your password reset link has expired. Would you like to request a new one?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _requestNewResetLink();
+            },
+            child: const Text('Request New Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _requestNewResetLink() async {
+    // Get email from current user or ask user
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final email = currentUser?.email;
+
+    if (email != null) {
+      try {
+        // Request new password reset
+        await Supabase.instance.client.auth.resetPasswordForEmail(email);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.email, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('New Reset Link Sent'),
+                        Text(
+                          'Check your email for a new password reset link.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.blue,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+
+          // Navigate back to login
+          Future.delayed(const Duration(seconds: 2), () {
+            Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          _showErrorMessage('Failed to send new reset link: $e');
+        }
+      }
+    } else {
+      // Ask user for email
+      _showEmailInputDialog();
+    }
+  }
+
+  void _showEmailInputDialog() {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Your Email'),
+        content: TextFormField(
+          controller: emailController,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            hintText: 'Enter your email address',
+          ),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isNotEmpty) {
+                Navigator.pop(context);
+                await _sendResetLinkToEmail(email);
+              }
+            },
+            child: const Text('Send Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendResetLinkToEmail(String email) async {
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Reset link sent to $email'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Navigate back to login
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorMessage('Failed to send reset link: $e');
+      }
+    }
+  }
+
+  Future<void> _completeResetFlow() async {
+    // Sign out to clear any remaining session
+    await Supabase.instance.client.auth.signOut();
+
+    // Navigate to login with success message
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    }
+  }
+
+  // ... rest of your existing methods (_validatePassword, _validateConfirmPassword,
+  // _inputDecoration, _buildRequirement, build method) remain the same ...
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
@@ -195,13 +407,41 @@ Future<void> _resetPassword() async {
                 const SizedBox(height: 8),
 
                 Text(
-                  'Enter your new password below. Make sure it\'s strong and secure.',
+                  'Enter a new password below. Make sure it\'s strong and secure.',
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark ? Colors.grey[400] : Colors.grey[600],
                   ),
                   textAlign: TextAlign.center,
                 ),
+
+                // Warning message if session might be expired
+                if (widget.resetToken != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Reset link expires in 1 hour. If you get an error, request a new link.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 const SizedBox(height: 40),
 
                 // New Password
@@ -258,8 +498,7 @@ Future<void> _resetPassword() async {
                       onPressed: () {
                         setState(
                               () =>
-                          _obscureConfirmPassword =
-                          !_obscureConfirmPassword,
+                          _obscureConfirmPassword = !_obscureConfirmPassword,
                         );
                       },
                     ),
@@ -268,45 +507,6 @@ Future<void> _resetPassword() async {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _resetPassword(),
-                ),
-                const SizedBox(height: 32),
-
-                // Password strength indicator
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color:
-                    isDark
-                        ? Colors.grey[900]?.withOpacity(0.3)
-                        : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Password Requirements:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onBackground,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildRequirement(
-                        'At least 6 characters',
-                        _passwordController.text.length >= 6,
-                      ),
-                      _buildRequirement(
-                        'Contains letters and numbers',
-                        RegExp(
-                          r'^(?=.*[a-zA-Z])(?=.*\d)',
-                        ).hasMatch(_passwordController.text),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 32),
 
@@ -323,8 +523,7 @@ Future<void> _resetPassword() async {
                     elevation: 2,
                     disabledBackgroundColor: Colors.blue.withOpacity(0.6),
                   ),
-                  child:
-                  _loading
+                  child: _loading
                       ? const SizedBox(
                     height: 24,
                     width: 24,
@@ -341,6 +540,16 @@ Future<void> _resetPassword() async {
                     ),
                   ),
                 ),
+
+                // Alternative: Request new link button
+                if (widget.resetToken != null)
+                  TextButton(
+                    onPressed: _loading ? null : _requestNewResetLink,
+                    child: const Text(
+                      'Request New Reset Link',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -359,8 +568,7 @@ Future<void> _resetPassword() async {
           Icon(
             isValid ? Icons.check_circle : Icons.radio_button_unchecked,
             size: 16,
-            color:
-            isValid
+            color: isValid
                 ? Colors.green
                 : (isDark ? Colors.grey[600] : Colors.grey[400]),
           ),
@@ -369,8 +577,7 @@ Future<void> _resetPassword() async {
             text,
             style: TextStyle(
               fontSize: 12,
-              color:
-              isValid
+              color: isValid
                   ? Colors.green
                   : (isDark ? Colors.grey[400] : Colors.grey[600]),
             ),
@@ -378,5 +585,12 @@ Future<void> _resetPassword() async {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

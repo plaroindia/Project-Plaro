@@ -26,6 +26,15 @@ class ChatUserProfile extends UserProfile {
     super.streakCount,
     super.createdAt,
     super.updatedAt,
+    // ✅ ADD THESE RANK PARAMETERS
+    super.totalPoints,
+    super.rankLevel,
+    super.consistencyScore,
+    super.authenticityScore,
+    super.contributionScore,
+    super.freelanceEligible,
+    super.verifiedEducator,
+    // Chat-specific
     this.lastMessage,
     this.lastMessageTime,
     this.unreadCount = 0,
@@ -56,6 +65,15 @@ class ChatUserProfile extends UserProfile {
       streakCount: user.streakCount,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      // ✅ ADD THESE RANK FIELDS
+      totalPoints: user.totalPoints,
+      rankLevel: user.rankLevel,
+      consistencyScore: user.consistencyScore,
+      authenticityScore: user.authenticityScore,
+      contributionScore: user.contributionScore,
+      freelanceEligible: user.freelanceEligible,
+      verifiedEducator: user.verifiedEducator,
+      // Chat-specific
       lastMessage: lastMessage,
       lastMessageTime: lastMessageTime,
       unreadCount: unreadCount,
@@ -64,7 +82,7 @@ class ChatUserProfile extends UserProfile {
     );
   }
 
-  // Override copyWith to include all UserProfile parameters plus chat-specific ones
+// Override copyWith to include all UserProfile parameters plus chat-specific ones
   @override
   ChatUserProfile copyWith({
     String? user_id,
@@ -81,6 +99,15 @@ class ChatUserProfile extends UserProfile {
     int? streakCount,
     DateTime? createdAt,
     DateTime? updatedAt,
+    // ✅ ADD THESE NEW PARAMETERS
+    int? totalPoints,
+    String? rankLevel,
+    double? consistencyScore,
+    double? authenticityScore,
+    double? contributionScore,
+    bool? freelanceEligible,
+    bool? verifiedEducator,
+    // Chat-specific parameters
     String? lastMessage,
     DateTime? lastMessageTime,
     int? unreadCount,
@@ -102,6 +129,15 @@ class ChatUserProfile extends UserProfile {
       streakCount: streakCount ?? this.streakCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      // ✅ ADD THESE TO THE CONSTRUCTOR CALL
+      totalPoints: totalPoints ?? this.totalPoints,
+      rankLevel: rankLevel ?? this.rankLevel,
+      consistencyScore: consistencyScore ?? this.consistencyScore,
+      authenticityScore: authenticityScore ?? this.authenticityScore,
+      contributionScore: contributionScore ?? this.contributionScore,
+      freelanceEligible: freelanceEligible ?? this.freelanceEligible,
+      verifiedEducator: verifiedEducator ?? this.verifiedEducator,
+      // Chat-specific fields
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageTime: lastMessageTime ?? this.lastMessageTime,
       unreadCount: unreadCount ?? this.unreadCount,
@@ -110,7 +146,6 @@ class ChatUserProfile extends UserProfile {
     );
   }
 }
-
 // Enhanced state class for chat users with message data
 class EnhancedChatListState {
   final List<ChatUserProfile> users;

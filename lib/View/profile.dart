@@ -205,6 +205,72 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
     }
   }
 
+  // Helper method to get rank badge info
+  Map<String, dynamic> _getRankInfo(String rankLevel) {
+    switch (rankLevel.toLowerCase()) {
+      case 'beginner':
+        return {
+          'color': Colors.grey,
+          'icon': Icons.star_border,
+          'label': 'Newbie',
+        };
+      case 'intermediate':
+        return {
+          'color': const Color(0xFFCD7F32), // Bronze color
+          'icon': Icons.star_half,
+          'label': 'Bronze',
+        };
+      case 'advanced':
+        return {
+          'color': const Color(0xFFC0C0C0), // Silver color
+          'icon': Icons.star,
+          'label': 'Silver',
+        };
+      case 'expert':
+        return {
+          'color': const Color(0xFFFFD700), // Gold color
+          'icon': Icons.stars,
+          'label': 'Gold',
+        };
+      case 'master':
+        return {
+          'color': const Color(0xFF9C27B0), // Purple for master
+          'icon': Icons.workspace_premium,
+          'label': 'Master',
+        };
+      default:
+        return {
+          'color': Colors.grey,
+          'icon': Icons.star_border,
+          'label': 'Newbie',
+        };
+    }
+  }
+
+// Helper to get next rank threshold
+  int _getNextRankThreshold(String currentRank) {
+    switch (currentRank.toLowerCase()) {
+      case 'beginner':
+        return 1000;
+      case 'intermediate':
+        return 50000;
+      case 'advanced':
+        return 1000000;
+      default:
+        return 0; // Max rank
+    }
+  }
+
+// Format large numbers
+  String _formatPoints(int points) {
+    if (points >= 1000000) {
+      return '${(points / 1000000).toStringAsFixed(1)}M';
+    } else if (points >= 1000) {
+      return '${(points / 1000).toStringAsFixed(1)}K';
+    }
+    return points.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -399,133 +465,361 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
     );
   }
 
+
   Widget _buildProfileInfo(AsyncValue profileState) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(10.0, 20.0, 10.0, 10.0),
-          child: profileState.when(
-            data: (profile) => _buildCachedAvatar(profile?.profilePic),
-            loading: () => const CircleAvatar(
-              radius: 68.0,
-              backgroundColor: Colors.grey,
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-              ),
-            ),
-            error: (error, stack) => const CircleAvatar(
-              backgroundImage: AssetImage('assets/plaro_logo.png'),
-              radius: 68.0,
-            ),
-          ),
-        ),
-        profileState.when(
-          data: (profile) => Text(
-            profile?.username ?? widget.initialUserData?.username ?? 'No username',
-            style: const TextStyle(
-              color: Colors.blue,
-              fontSize: 20.0,
-              letterSpacing: 2.0,
-            ),
-          ),
-          loading: () => const Text(
-            'Loading...',
-            style: TextStyle(color: Colors.grey, fontSize: 20.0),
-          ),
-          error: (error, stack) => Text(
-            widget.initialUserData?.username ?? 'Error loading username',
-            style: const TextStyle(color: Colors.red),
-          ),
-        ),
-        profileState.when(
-          data: (profile) => Text(
-            profile?.study ?? 'No school info',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15.0,
-              letterSpacing: 1.0,
-            ),
-          ),
-          loading: () => const Text(
-            'Loading...',
-            style: TextStyle(color: Colors.grey, fontSize: 15.0),
-          ),
-          error: (error, stack) => const Text(
-            'Error loading school',
-            style: TextStyle(color: Colors.red, fontSize: 15.0),
-          ),
-        ),
-        profileState.when(
-          data: (profile) => Text(
-            profile?.bio ?? 'No bio',
-            style: const TextStyle(color: Colors.blue, fontSize: 13.0),
-            textAlign: TextAlign.center,
-          ),
-          loading: () => const Text(
-            'Loading...',
-            style: TextStyle(color: Colors.grey, fontSize: 13.0),
-          ),
-          error: (error, stack) => const Text(
-            'Error loading bio',
-            style: TextStyle(color: Colors.red, fontSize: 13.0),
-          ),
-        ),
-        // Role & location
+        const SizedBox(height: 20.0),
+
+        // First Row: Profile Picture + User Details
         profileState.when(
           data: (profile) {
-            final hasRole = profile?.role != null;
-            final hasLocation = profile?.location != null;
-            if (!hasRole && !hasLocation) return const SizedBox.shrink();
+            if (profile == null) return const SizedBox.shrink();
+
             return Padding(
-              padding: const EdgeInsets.only(top: 5.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (hasRole)
-                    Row(
+                  // Profile Picture
+                  _buildCachedAvatar(profile.profilePic),
+
+                  const SizedBox(width: 16.0),
+
+                  // User Details (Right side)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.work_history_outlined,
-                            color: Colors.lightBlue, size: 16),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+                        // Username
+                        Text(
+                          profile.username ?? widget.initialUserData?.username ?? 'No username',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontSize: 20.0,
+                            letterSpacing: 2.0,
+                            fontWeight: FontWeight.bold,
                           ),
-                          child: Text(
-                            profile!.role!,
+                        ),
+                        const SizedBox(height: 6.0),
+
+                        // School
+                        Text(
+                          profile.study ?? 'No school info',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.0,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 6.0),
+
+                        // Bio
+                        Text(
+                          profile.bio ?? 'No bio',
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontSize: 13.0,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8.0),
+
+                        // Role & Location
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            if (profile.role != null)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.work_history_outlined,
+                                      color: Colors.lightBlue, size: 14),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      profile.role!,
+                                      style: const TextStyle(
+                                          color: Colors.green, fontSize: 11.0),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (profile.location != null)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.location_on_outlined,
+                                      color: Colors.lightBlue, size: 14),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      profile.location!,
+                                      style: const TextStyle(
+                                          color: Colors.red, fontSize: 11.0),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          loading: () => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 68.0,
+                  backgroundColor: Colors.grey,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  ),
+                ),
+                const SizedBox(width: 16.0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text('Loading...', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          error: (error, stack) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  backgroundImage: AssetImage('assets/plaro_logo.png'),
+                  radius: 68.0,
+                ),
+                const SizedBox(width: 16.0),
+                Expanded(
+                  child: Text(
+                    widget.initialUserData?.username ?? 'Error loading profile',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20.0),
+
+
+
+        // Second Row: Circular Progress Bar + Plaro Points & Consistency
+        profileState.when(
+          data: (profile) {
+            if (profile == null) return const SizedBox.shrink();
+
+            final rankInfo = _getRankInfo(profile.rankLevel);
+            final nextThreshold = _getNextRankThreshold(profile.rankLevel);
+            final progress = nextThreshold > 0
+                ? (profile.totalPoints / nextThreshold).clamp(0.0, 1.0)
+                : 1.0;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+
+                  // Plaro Points & Consistency (Right side)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Plaro Points
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.amber.withOpacity(0.3),
+                                Colors.orange.withOpacity(0.1),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.amber,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.toll,
+                                color: Colors.amber,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Plaro Points',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatPoints(profile.totalPoints),
+                                    style: const TextStyle(
+                                      color: Colors.amber,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Progress to next rank
+                        if (nextThreshold > 0) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '${_formatPoints(profile.totalPoints)} / ${_formatPoints(nextThreshold)} to next rank',
                             style: const TextStyle(
-                                color: Colors.green, fontSize: 12.0),
+                              color: Colors.grey,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+
+                        // const SizedBox(height: 12),
+                        //
+                        // // Consistency Score
+                        // if (profile.consistencyScore > 0.3)
+                        //   Container(
+                        //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        //     decoration: BoxDecoration(
+                        //       gradient: LinearGradient(
+                        //         colors: [
+                        //           Colors.green.withOpacity(0.3),
+                        //           Colors.teal.withOpacity(0.1),
+                        //         ],
+                        //       ),
+                        //       borderRadius: BorderRadius.circular(12),
+                        //       border: Border.all(
+                        //         color: Colors.green,
+                        //         width: 1.5,
+                        //       ),
+                        //     ),
+                        //     child: Row(
+                        //       mainAxisSize: MainAxisSize.min,
+                        //       children: [
+                        //         Icon(
+                        //           Icons.trending_up,
+                        //           color: Colors.green[400],
+                        //           size: 16,
+                        //         ),
+                        //         const SizedBox(width: 6),
+                        //         Text(
+                        //           'Consistency: ${(profile.consistencyScore * 100).toInt()}%',
+                        //           style: TextStyle(
+                        //             color: Colors.green[400],
+                        //             fontSize: 12,
+                        //             fontWeight: FontWeight.w600,
+                        //           ),
+                        //         ),
+                        //       ],
+                        //     ),
+                        //   ),
+                      ],
+                    ),
+                  ),
+
+
+                  const SizedBox(width: 30.0),
+
+                  // Circular Progress Bar (matching profile picture size)
+                  SizedBox(
+                    width: 90, // Same as profile picture diameter (68*2)
+                    height: 90,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Circular progress indicator
+                        SizedBox(
+                          width: 90,
+                          height: 90,
+                          child: CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 10,
+                            backgroundColor: Colors.grey[800],
+                            valueColor: AlwaysStoppedAnimation(rankInfo['color']),
+                          ),
+                        ),
+                        // Center content - Rank badge (trying to use network image-like styling)
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                rankInfo['color'].withOpacity(0.2),
+                                Colors.black.withOpacity(0.3),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: rankInfo['color'].withOpacity(0.5),
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                rankInfo['icon'],
+                                color: rankInfo['color'],
+                                size: 36,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                rankInfo['label'],
+                                style: TextStyle(
+                                  color: rankInfo['color'],
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  if (hasRole && hasLocation) const SizedBox(width: 20),
-                  if (hasLocation)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            color: Colors.lightBlue, size: 16),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            profile!.location!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 12.0),
-                          ),
-                        ),
-                      ],
-                    ),
+                  ),
+
+
                 ],
               ),
             );
@@ -533,6 +827,9 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
           loading: () => const SizedBox.shrink(),
           error: (error, stack) => const SizedBox.shrink(),
         ),
+
+        const SizedBox(height: 10.0),
+
         // Stats
         profileState.when(
           data: (profile) => profile != null

@@ -50,62 +50,132 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     setState(() => _loading = true);
 
     try {
-      final response = await Supabase.instance.client.functions.invoke(
-        'verify-otp',
-        body: {
-          'email': widget.email,
-          'otp': _otp,
-          'purpose': widget.purpose,
-        },
-      );
+      // Direct Supabase OTP verification (RECOMMENDED - no Edge Function needed)
+      if (widget.purpose == 'signup') {
+        // For signup verification
+        await Supabase.instance.client.auth.verifyOTP(
+          email: widget.email.trim(),
+          token: _otp.trim(),
+          type: OtpType.email,
+        );
 
-      if (response.data['success'] == true) {
-        if (mounted) {
-          _showMessage('Verification successful!', Colors.green);
+        // Check if user is now authenticated
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        if (currentUser != null) {
+          // Update user metadata for onboarding
+          await Supabase.instance.client.auth.updateUser(
+            UserAttributes(
+              data: {'onboarding_complete': false},
+            ),
+          );
 
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          if (widget.purpose == 'signup') {
-            // For signup, set the session to log the user in
-            final sessionData = response.data['session'];
-            if (sessionData != null) {
-              await Supabase.instance.client.auth.setSession(
-                sessionData['refresh_token'],
-              );
-            }
-
-
+          if (mounted) {
+            _showMessage('Email verified successfully!', Colors.green);
+            await Future.delayed(const Duration(milliseconds: 500));
 
             // Navigate to onboarding
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const OnboardingFlow()),
             );
-          } else {
-            // Navigate to reset password with token
+          }
+        } else {
+          throw Exception('User not authenticated after verification');
+        }
+      } else {
+        // For password reset verification
+        await Supabase.instance.client.auth.verifyOTP(
+          email: widget.email.trim(),
+          token: _otp.trim(),
+          type: OtpType.recovery,
+        );
+
+        // Get the current session for reset token
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null) {
+          if (mounted) {
+            _showMessage('OTP verified! You can now reset your password.', Colors.green);
+            await Future.delayed(const Duration(milliseconds: 500));
+
+            // Navigate to reset password with access token
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => ResetPasswordPage(
-                  resetToken: response.data['resetToken'],
+                  resetToken: session.accessToken,
                 ),
               ),
             );
           }
+        } else {
+          throw Exception('No session available for password reset');
         }
-      } else {
-        throw Exception(response.data['error'] ?? 'Verification failed');
       }
     } catch (e) {
-      if (mounted) {
-        _showMessage('Verification failed: ${e.toString()}', Colors.red);
-        _clearOTP();
+      print('OTP Verification Error: $e');
+
+      // Fallback: Try Edge Function if direct verification fails
+      try {
+        final response = await Supabase.instance.client.functions.invoke(
+          'verify-otp',
+          body: {
+            'email': widget.email.trim(),
+            'otp': _otp.trim(),
+            'purpose': widget.purpose,
+          },
+        );
+
+        if (response.data['success'] == true) {
+          if (mounted) {
+            _showMessage('Verification successful!', Colors.green);
+            await Future.delayed(const Duration(milliseconds: 500));
+
+            if (widget.purpose == 'signup') {
+              // Try to get session from Edge Function response
+              final sessionData = response.data['session'];
+              if (sessionData != null && sessionData['refresh_token'] != null) {
+                // Set session using refresh token from Edge Function
+                await Supabase.instance.client.auth.setSession(
+                  sessionData['refresh_token'],
+                );
+              }
+
+              // Navigate to onboarding
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const OnboardingFlow()),
+              );
+            } else {
+              // For password reset
+              final resetToken = response.data['resetToken'];
+              if (resetToken != null && resetToken.isNotEmpty) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ResetPasswordPage(
+                      resetToken: resetToken,
+                    ),
+                  ),
+                );
+              } else {
+                throw Exception('No reset token received');
+              }
+            }
+          }
+        } else {
+          throw Exception(response.data['error'] ?? 'Verification failed');
+        }
+      } catch (edgeError) {
+        print('Edge Function Error: $edgeError');
+        if (mounted) {
+          _showMessage('Verification failed: ${e.toString()}', Colors.red);
+          _clearOTP();
+        }
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
-
   void _clearOTP() {
     for (var controller in _controllers) {
       controller.clear();

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PEARL | Create Account</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/signup.css">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Hero/Illustration Section -->
+    <div class="hero-section">
+      <div class="hero-content">
+        <h1>Welcome to PEARL</h1>
+        <p>Join thousands of learners who use PEARL to accelerate their career growth. Get AI-powered personalized learning paths tailored to your goals.</p>
+        
+        <div class="features">
+          <div class="feature">
+            <span class="material-icons">psychology</span>
+            <span>AI-powered personalized learning paths</span>
+          </div>
+          <div class="feature">
+            <span class="material-icons">workspace_premium</span>
+            <span>Track skills and earn achievements</span>
+          </div>
+          <div class="feature">
+            <span class="material-icons">insights</span>
+            <span>Real-time progress analytics</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card/Form Section -->
+    <div class="card-section">
+      <div class="top-bar">
+        <button class="back-btn" onclick="goBack()">
+          <span class="material-icons">arrow_back</span>
+          Back
+        </button>
+
+        <button class="theme-toggle" onclick="toggleTheme()">
+          <span class="material-icons">dark_mode</span>
+        </button>
+      </div>
+
+      <div class="logo">
+        <img src="assets/plaro_logo.png" alt="PLARO Logo">
+      </div>
+
+      <h1>PEARL</h1>
+      <h2>Create Account</h2>
+      <p class="subtitle">Start your personalized learning journey today</p>
+
+      <form id="signupForm">
+        <div class="field">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" placeholder="Enter your email address" required>
+          <div class="error" id="emailError"></div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Create a strong password" required>
+          <span class="material-icons toggle" onclick="togglePassword('password')">visibility_off</span>
+          <div class="error" id="passwordError"></div>
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" placeholder="Re-enter your password" required>
+          <span class="material-icons toggle" onclick="togglePassword('confirmPassword')">visibility_off</span>
+          <div class="error" id="confirmError"></div>
+        </div>
+
+        <div class="terms">
+          <input type="checkbox" id="terms" required>
+          <span>
+            I agree to the <a href="#" onclick="showTerms()">Terms & Conditions</a> and 
+            <a href="#" onclick="showPrivacy()">Privacy Policy</a>
+          </span>
+        </div>
+
+        <button type="submit">Create Account</button>
+      </form>
+
+      <div class="footer">
+        Already have an account?
+        <a href="login.html">Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="snackbar" id="snackbar"></div>
+
+  <!-- JS - Load API config first, then signup script -->
+  <script src="js/api-config"></script>
+  <script src="js/signup.js"></script>
+</body>
+</html>

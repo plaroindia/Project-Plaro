@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     FRONTEND_URL: str = "http://localhost:8000"
     
+    # Adzuna Job API credentials
+    ADZUNA_APP_ID: Optional[str] = None
+    ADZUNA_APP_KEY: Optional[str] = None
+    
     class Config:
         env_file = ".env"
 

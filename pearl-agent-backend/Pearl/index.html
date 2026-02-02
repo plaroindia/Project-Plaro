@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taiken | AI-Powered Career Development</title>
+    <link rel="stylesheet" href="css/home.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <img src="assets/plaro_logo.png" alt="Taiken Logo" class="logo-img">
+                <span class="logo-text">PEARL</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="index.html" class="active">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="#roadmap">
+                    <i class="fas fa-road"></i>
+                    <span>Roadmap</span>
+                </a>
+                <a href="#progress">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Progress</span>
+                </a>
+                <a href="#jobs">
+                    <i class="fas fa-briefcase"></i>
+                    <span>Jobs</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </a>
+                <div class="user-menu">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="User" class="user-avatar">
+                    <div class="user-info">
+                        <span class="user-name">Alex Morgan</span>
+                        <span class="user-level">Level 3</span>
+                    </div>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            
+            <button class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu">
+        <div class="mobile-menu-header">
+            <div class="mobile-user-info">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="User" class="mobile-avatar">
+                <div>
+                    <h4>Alex Morgan</h4>
+                    <p>Frontend Developer</p>
+                </div>
+            </div>
+            <button class="mobile-menu-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="mobile-menu-content">
+            <a href="index.html" class="active">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="#roadmap">
+                <i class="fas fa-road"></i>
+                <span>Roadmap</span>
+            </a>
+            <a href="#progress">
+                <i class="fas fa-chart-line"></i>
+                <span>Progress</span>
+            </a>
+            <a href="#jobs">
+                <i class="fas fa-briefcase"></i>
+                <span>Jobs</span>
+            </a>
+            <a href="#">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </a>
+            <a href="#">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+            <div class="mobile-theme-toggle">
+                <span>Dark Mode</span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="mobileThemeToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <a href="login.html" class="logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i class="fas fa-rocket"></i>
+                    <span>Career Accelerator</span>
+                </div>
+                <h1>Your Personal <span class="gradient-text">Learning</span> Journey</h1>
+                <p class="hero-subtitle">Master in-demand skills, track your progress, and connect with opportunities that match your growth.</p>
+                
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">85%</div>
+                        <div class="stat-label">Path Completion</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">24</div>
+                        <div class="stat-label">Skills Mastered</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">98%</div>
+                        <div class="stat-label">Job Match Score</div>
+                    </div>
+                </div>
+                
+                <div class="hero-actions">
+                    <a href="#roadmap" class="btn primary">
+                        <i class="fas fa-play"></i>
+                        Continue Learning
+                    </a>
+                    <a href="#jobs" class="btn outline">
+                        <i class="fas fa-search"></i>
+                        Explore Jobs
+                    </a>
+                </div>
+            </div>
+            
+            <div class="hero-visual">
+                <div class="progress-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-fire"></i> Current Learning Path</h3>
+                        <span class="badge">Frontend Developer</span>
+                    </div>
+                    
+                    <div class="progress-section">
+                        <div class="progress-header">
+                            <span>Overall Progress</span>
+                            <span>65%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 65%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="learning-items">
+                        <div class="learning-item completed">
+                            <i class="fas fa-check-circle"></i>
+                            <span>HTML & CSS Fundamentals</span>
+                        </div>
+                        <div class="learning-item completed">
+                            <i class="fas fa-check-circle"></i>
+                            <span>JavaScript Basics</span>
+                        </div>
+                        <div class="learning-item active">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Taiken Story Lab</span>
+                        </div>
+                        <div class="learning-item">
+                            <i class="fas fa-lock"></i>
+                            <span>React Framework</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Current Position -->
+    <section class="current-position">
+        <div class="container">
+            <div class="section-header">
+                <h2><i class="fas fa-map-marker-alt"></i> Current Position</h2>
+                <p class="section-subtitle">Your current standing in the Frontend Developer roadmap</p>
+            </div>
+            
+            <div class="position-card">
+                <div class="position-info">
+                    <div class="position-level">
+                        <div class="level-circle">
+                            <span class="level-number">2</span>
+                        </div>
+                        <div>
+                            <h3>Level 2 Developer</h3>
+                            <p>Foundations Complete</p>
+                        </div>
+                    </div>
+                    
+                    <div class="position-progress">
+                        <div class="progress-circle" data-progress="65">
+                            <svg width="100" height="100">
+                                <circle class="progress-bg" cx="50" cy="50" r="45"></circle>
+                                <circle class="progress-fill" cx="50" cy="50" r="45"></circle>
+                            </svg>
+                            <div class="progress-text">
+                                <span class="progress-value">65%</span>
+                                <span class="progress-label">Complete</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="position-metrics">
+                    <div class="metric">
+                        <div class="metric-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>28 Days</h4>
+                            <p>Active Streak</p>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>8/12</h4>
+                            <p>Skills Mastered</p>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon">
+                            <i class="fas fa-project-diagram"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>3 Projects</h4>
+                            <p>Completed</p>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h4>1 Story</h4>
+                            <p>Taiken Completed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Vertical Roadmap -->
+    <section id="roadmap" class="roadmap-section">
+        <div class="container">
+            <div class="section-header">
+                <h2><i class="fas fa-road"></i> Your Learning Roadmap</h2>
+                <p class="section-subtitle">Interactive learning path with Taiken as a foundational step</p>
+            </div>
+            
+            <div class="vertical-roadmap">
+                <!-- Level 1: Foundation -->
+                <div class="roadmap-level">
+                    <div class="level-header">
+                        <div class="level-indicator">
+                            <div class="level-circle">1</div>
+                            <div class="level-line"></div>
+                        </div>
+                        <div class="level-content">
+                            <h3 class="level-title">Foundation</h3>
+                            <p class="level-description">Build strong fundamentals in web development</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modules-grid">
+                        <div class="module-card completed" data-module="web-fundamentals">
+                            <div class="module-status completed">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fab fa-html5"></i>
+                                </div>
+                                <div>
+                                    <h4>Web Fundamentals</h4>
+                                    <p>HTML5, CSS3, Responsive Design</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 12h</span>
+                                        <span><i class="fas fa-star"></i> 4.9</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card completed" data-module="javascript-basics">
+                            <div class="module-status completed">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fab fa-js"></i>
+                                </div>
+                                <div>
+                                    <h4>JavaScript Core</h4>
+                                    <p>ES6+, DOM, Async Programming</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 24h</span>
+                                        <span><i class="fas fa-star"></i> 4.8</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card completed" data-module="git-basics">
+                            <div class="module-status completed">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fab fa-git-alt"></i>
+                                </div>
+                                <div>
+                                    <h4>Git & Version Control</h4>
+                                    <p>Git basics, GitHub, Collaboration</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 8h</span>
+                                        <span><i class="fas fa-star"></i> 4.7</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Level 2: Taiken Story Lab -->
+                <div class="roadmap-level">
+                    <div class="level-header">
+                        <div class="level-indicator">
+                            <div class="level-circle taiken-level">T</div>
+                            <div class="level-line"></div>
+                        </div>
+                        <div class="level-content">
+                            <h3 class="level-title taiken-gradient">Taiken Story Lab</h3>
+                            <p class="level-description">Apply your foundational skills through immersive, story-based learning experiences</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modules-grid">
+                        <!-- Enhanced Taiken Story Module -->
+                        <div class="module-card taiken-module current featured" data-module="taiken-story">
+                            <div class="module-status taiken">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon taiken">
+                                    <i class="fas fa-book-open"></i>
+                                </div>
+                                <div>
+                                    <div class="taiken-header">
+                                        <div class="taiken-label">
+                                            <span class="taiken-badge">
+                                                <i class="fas fa-gem"></i>
+                                                Taiken Exclusive
+                                            </span>
+                                            <span class="interactive-badge">
+                                                <i class="fas fa-gamepad"></i>
+                                                Interactive Learning
+                                            </span>
+                                        </div>
+                                        <h4>Story Lab Experience</h4>
+                                        <p>Apply your skills in real-world scenarios through immersive story-based challenges</p>
+                                    </div>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-users"></i> 2.4k Active Learners</span>
+                                        <span><i class="fas fa-heart"></i> 98% Satisfaction</span>
+                                    </div>
+                                    <div class="taiken-features">
+                                        <span class="feature">
+                                            <i class="fas fa-scroll"></i> 5 Interactive Stories
+                                        </span>
+                                        <span class="feature">
+                                            <i class="fas fa-trophy"></i> Gamified Progress
+                                        </span>
+                                        <span class="feature">
+                                            <i class="fas fa-code"></i> Real Projects
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="taiken-preview">
+                                <div class="preview-content">
+                                    <i class="fas fa-play-circle"></i>
+                                    <span>Current: "The Startup Challenge" - Chapter 2: The Bug Hunt</span>
+                                </div>
+                            </div>
+                            <div class="taiken-progress">
+                                <div class="progress-info">
+                                    <span>Story Progress</span>
+                                    <span>45%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card taiken-support" data-module="taiken-support">
+                            <div class="module-status completed">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-hands-helping"></i>
+                                </div>
+                                <div>
+                                    <h4>Community Support</h4>
+                                    <p>Connect with peers, get feedback, and collaborate</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-comments"></i> Live Help</span>
+                                        <span><i class="fas fa-user-friends"></i> Group Projects</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card taiken-project" data-module="taiken-project">
+                            <div class="module-status upcoming">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-project-diagram"></i>
+                                </div>
+                                <div>
+                                    <h4>Portfolio Project</h4>
+                                    <p>Build a real project for your portfolio</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 15h</span>
+                                        <span><i class="fas fa-lock"></i> After Story</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Level 3: Frontend Development -->
+                <div class="roadmap-level">
+                    <div class="level-header">
+                        <div class="level-indicator">
+                            <div class="level-circle">2</div>
+                            <div class="level-line"></div>
+                        </div>
+                        <div class="level-content">
+                            <h3 class="level-title">Frontend Development</h3>
+                            <p class="level-description">Master modern frontend technologies and frameworks</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modules-grid">
+                        <div class="module-card upcoming" data-module="react-mastery">
+                            <div class="module-status upcoming">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fab fa-react"></i>
+                                </div>
+                                <div>
+                                    <h4>React Framework</h4>
+                                    <p>Components, Hooks, State Management</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 40h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card upcoming" data-module="state-management">
+                            <div class="module-status upcoming">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-database"></i>
+                                </div>
+                                <div>
+                                    <h4>State Management</h4>
+                                    <p>Redux, Context API, Zustand</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 16h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card upcoming" data-module="ui-ux">
+                            <div class="module-status upcoming">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-palette"></i>
+                                </div>
+                                <div>
+                                    <h4>UI/UX Principles</h4>
+                                    <p>Design systems, Accessibility</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 12h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card upcoming" data-module="testing">
+                            <div class="module-status upcoming">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-vial"></i>
+                                </div>
+                                <div>
+                                    <h4>Testing & Debugging</h4>
+                                    <p>Jest, React Testing Library</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 14h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card upcoming" data-module="performance">
+                            <div class="module-status upcoming">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                </div>
+                                <div>
+                                    <h4>Performance Optimization</h4>
+                                    <p>Code splitting, Lazy loading</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 10h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Level 4: Advanced -->
+                <div class="roadmap-level">
+                    <div class="level-header">
+                        <div class="level-indicator">
+                            <div class="level-circle">3</div>
+                            <div class="level-line"></div>
+                        </div>
+                        <div class="level-content">
+                            <h3 class="level-title">Advanced</h3>
+                            <p class="level-description">Build full-stack applications and master advanced concepts</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modules-grid">
+                        <div class="module-card locked" data-module="backend-basics">
+                            <div class="module-status locked">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fab fa-node-js"></i>
+                                </div>
+                                <div>
+                                    <h4>Backend Development</h4>
+                                    <p>Node.js, Express, REST APIs</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 32h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card locked" data-module="databases">
+                            <div class="module-status locked">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-database"></i>
+                                </div>
+                                <div>
+                                    <h4>Databases</h4>
+                                    <p>MongoDB, PostgreSQL, ORMs</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 24h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card locked" data-module="fullstack-projects">
+                            <div class="module-status locked">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-layer-group"></i>
+                                </div>
+                                <div>
+                                    <h4>Full-Stack Projects</h4>
+                                    <p>Real-world Applications</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 48h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Level 5: Career -->
+                <div class="roadmap-level">
+                    <div class="level-header">
+                        <div class="level-indicator">
+                            <div class="level-circle">4</div>
+                        </div>
+                        <div class="level-content">
+                            <h3 class="level-title">Career & Specialization</h3>
+                            <p class="level-description">Specialize and prepare for your dream job</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modules-grid">
+                        <div class="module-card locked" data-module="portfolio">
+                            <div class="module-status locked">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-briefcase"></i>
+                                </div>
+                                <div>
+                                    <h4>Portfolio Development</h4>
+                                    <p>Build an impressive portfolio</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 40h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card locked" data-module="interview-prep">
+                            <div class="module-status locked">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-comments"></i>
+                                </div>
+                                <div>
+                                    <h4>Interview Preparation</h4>
+                                    <p>Technical interviews, Mock tests</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 25h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="module-card locked" data-module="specialization">
+                            <div class="module-status locked">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="module-content">
+                                <div class="module-icon">
+                                    <i class="fas fa-medal"></i>
+                                </div>
+                                <div>
+                                    <h4>Specialization Path</h4>
+                                    <p>Choose your expert track</p>
+                                    <div class="module-meta">
+                                        <span><i class="fas fa-clock"></i> 60h</span>
+                                        <span><i class="fas fa-lock"></i> Locked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Progress Summary -->
+    <section id="progress" class="progress-section">
+        <div class="container">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-line"></i> Progress Summary</h2>
+                <p class="section-subtitle">Track your learning journey and achievements</p>
+            </div>
+            
+            <div class="progress-grid">
+                <div class="progress-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-calendar-alt"></i> Weekly Activity</h3>
+                    </div>
+                    <div class="activity-chart">
+                        <div class="chart-bars">
+                            <div class="bar" data-value="60"></div>
+                            <div class="bar" data-value="80"></div>
+                            <div class="bar" data-value="90"></div>
+                            <div class="bar" data-value="70"></div>
+                            <div class="bar" data-value="85"></div>
+                            <div class="bar" data-value="95"></div>
+                            <div class="bar" data-value="40"></div>
+                        </div>
+                        <div class="chart-labels">
+                            <span>Mon</span>
+                            <span>Tue</span>
+                            <span>Wed</span>
+                            <span>Thu</span>
+                            <span>Fri</span>
+                            <span>Sat</span>
+                            <span>Sun</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-trophy"></i> Recent Achievements</h3>
+                    </div>
+                    <div class="achievements-list">
+                        <div class="achievement">
+                            <div class="achievement-icon">
+                                <i class="fas fa-rocket"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h4>Fast Learner</h4>
+                                <p>Completed 5 modules in a week</p>
+                            </div>
+                        </div>
+                        <div class="achievement">
+                            <div class="achievement-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h4>Perfect Score</h4>
+                                <p>100% on JavaScript assessment</p>
+                            </div>
+                        </div>
+                        <div class="achievement">
+                            <div class="achievement-icon">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div class="achievement-content">
+                                <h4>Story Explorer</h4>
+                                <p>Started Taiken Story Journey</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-puzzle-piece"></i> Skill Distribution</h3>
+                    </div>
+                    <div class="skill-distribution">
+                        <div class="skill-item">
+                            <div class="skill-info">
+                                <span>Foundations</span>
+                                <span>100%</span>
+                            </div>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="skill-info">
+                                <span>Practical Experience</span>
+                                <span>45%</span>
+                            </div>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width: 45%"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="skill-info">
+                                <span>Frontend Frameworks</span>
+                                <span>0%</span>
+                            </div>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Job Recommendations -->
+    <section id="jobs" class="jobs-section">
+        <div class="container">
+            <div class="section-header">
+                <h2><i class="fas fa-briefcase"></i> Job Recommendations</h2>
+                <p class="section-subtitle">Opportunities matched to your skills and career goals</p>
+            </div>
+            
+            <div class="job-filters">
+                <button class="filter-btn active">All</button>
+                <button class="filter-btn">Remote</button>
+                <button class="filter-btn">Full-time</button>
+                <button class="filter-btn">High Match</button>
+            </div>
+            
+            <div class="jobs-grid">
+                <!-- Job 1 -->
+                <div class="job-card">
+                    <div class="job-header">
+                        <div class="company-info">
+                            <img src="https://api.dicebear.com/7.x/shapes/svg?seed=TechCorp" alt="TechCorp" class="company-logo">
+                            <div>
+                                <h3>Junior Frontend Developer</h3>
+                                <p>TechCorp • <i class="fas fa-map-marker-alt"></i> Remote</p>
+                            </div>
+                        </div>
+                        <div class="match-badge high-match">
+                            <i class="fas fa-bolt"></i>
+                            94% Match
+                        </div>
+                    </div>
+                    
+                    <div class="job-description">
+                        <p>Looking for developers with strong HTML/CSS/JS skills and willingness to learn React on the job.</p>
+                        
+                        <div class="job-skills">
+                            <span class="skill-tag">HTML/CSS</span>
+                            <span class="skill-tag">JavaScript</span>
+                            <span class="skill-tag">Git</span>
+                            <span class="skill-tag">Willing to Learn</span>
+                        </div>
+                    </div>
+                    
+                    <div class="job-footer">
+                        <div class="job-meta">
+                            <span><i class="fas fa-money-bill-wave"></i> $60k - $80k</span>
+                            <span><i class="fas fa-clock"></i> Full-time</span>
+                        </div>
+                        <button class="btn primary small apply-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            Apply
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Job 2 -->
+                <div class="job-card">
+                    <div class="job-header">
+                        <div class="company-info">
+                            <img src="https://api.dicebear.com/7.x/shapes/svg?seed=StartupX" alt="StartupX" class="company-logo">
+                            <div>
+                                <h3>Web Developer Intern</h3>
+                                <p>StartupX • <i class="fas fa-map-marker-alt"></i> New York</p>
+                            </div>
+                        </div>
+                        <div class="match-badge medium-match">
+                            <i class="fas fa-bolt"></i>
+                            78% Match
+                        </div>
+                    </div>
+                    
+                    <div class="job-description">
+                        <p>Entry-level position for passionate developers eager to learn and grow in a fast-paced environment.</p>
+                        
+                        <div class="job-skills">
+                            <span class="skill-tag">HTML/CSS</span>
+                            <span class="skill-tag">JavaScript</span>
+                            <span class="skill-tag">Git</span>
+                            <span class="skill-tag">Problem Solving</span>
+                        </div>
+                    </div>
+                    
+                    <div class="job-footer">
+                        <div class="job-meta">
+                            <span><i class="fas fa-money-bill-wave"></i> $45k - $60k</span>
+                            <span><i class="fas fa-clock"></i> Full-time</span>
+                        </div>
+                        <button class="btn primary small apply-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            Apply
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Job 3 -->
+                <div class="job-card">
+                    <div class="job-header">
+                        <div class="company-info">
+                            <img src="https://api.dicebear.com/7.x/shapes/svg?seed=DigitalAgency" alt="DigitalAgency" class="company-logo">
+                            <div>
+                                <h3>Frontend Developer</h3>
+                                <p>Digital Agency • <i class="fas fa-map-marker-alt"></i> Remote</p>
+                            </div>
+                        </div>
+                        <div class="match-badge medium-match">
+                            <i class="fas fa-bolt"></i>
+                            82% Match
+                        </div>
+                    </div>
+                    
+                    <div class="job-description">
+                        <p>Build beautiful interfaces and collaborate with designers to create amazing user experiences.</p>
+                        
+                        <div class="job-skills">
+                            <span class="skill-tag">HTML/CSS</span>
+                            <span class="skill-tag">JavaScript</span>
+                            <span class="skill-tag">Responsive Design</span>
+                            <span class="skill-tag">Git</span>
+                        </div>
+                    </div>
+                    
+                    <div class="job-footer">
+                        <div class="job-meta">
+                            <span><i class="fas fa-money-bill-wave"></i> $65k - $85k</span>
+                            <span><i class="fas fa-clock"></i> Full-time</span>
+                        </div>
+                        <button class="btn primary small apply-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="view-all-jobs">
+                <a href="#" class="btn outline">
+                    <i class="fas fa-eye"></i>
+                    View All Job Matches
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <a href="index.html" class="logo">
+                        <img src="assets/logo/taiken-logo.svg" alt="Taiken Logo" class="footer-logo">
+                        <span class="logo-text">Taiken</span>
+                    </a>
+                    <p class="footer-description">Your personal career development platform that helps you learn, grow, and land your dream job.</p>
+                </div>
+                
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Platform</h4>
+                        <a href="#roadmap">Roadmaps</a>
+                        <a href="#">Courses</a>
+                        <a href="#">Taiken Stories</a>
+                        <a href="#">Assessments</a>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h4>Company</h4>
+                        <a href="#">About Us</a>
+                        <a href="#">Careers</a>
+                        <a href="#">Blog</a>
+                        <a href="#">Contact</a>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h4>Support</h4>
+                        <a href="#">Help Center</a>
+                        <a href="#">Community</a>
+                        <a href="#">FAQs</a>
+                        <a href="#">Privacy Policy</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 Taiken. All rights reserved.</p>
+                <div class="social-links">
+                    <a href="#">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    <a href="#">
+                        <i class="fab fa-linkedin"></i>
+                    </a>
+                    <a href="#">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="#">
+                        <i class="fab fa-discord"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Module Modal -->
+    <div class="module-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fab fa-react"></i>
+                </div>
+                <div>
+                    <h3 id="modalTitle">React Framework</h3>
+                    <div class="modal-tags">
+                        <span class="tag upcoming">Upcoming</span>
+                        <span class="tag intermediate">Intermediate</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-body">
+                <div class="modal-progress">
+                    <div class="progress-info">
+                        <span>Progress</span>
+                        <span id="modalProgress">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="modalProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="modal-description">
+                    <h4>About This Module</h4>
+                    <p id="modalDescription">Master React.js with hands-on projects, learn modern hooks, state management, and build production-ready applications.</p>
+                </div>
+                
+                <div class="modal-curriculum">
+                    <h4>Curriculum</h4>
+                    <div class="curriculum-list" id="modalCurriculum">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn primary" id="continueBtn">
+                        <i class="fas fa-lock"></i>
+                        Complete Prerequisites First
+                    </button>
+                    <button class="btn outline">
+                        <i class="fas fa-download"></i>
+                        Preview Content
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Taiken Story Modal -->
+    <div class="story-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content story-content">
+            <button class="modal-close story-close">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="story-header">
+                <div class="story-icon">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <div>
+                    <h3>Taiken Story Lab</h3>
+                    <div class="story-tags">
+                        <span class="tag interactive">Interactive</span>
+                        <span class="tag premium">Premium</span>
+                        <span class="tag current">Current</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="story-body">
+                <div class="story-progress">
+                    <div class="progress-info">
+                        <span>Story Progress</span>
+                        <span id="storyProgress">45%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="storyProgressBar" style="width: 45%"></div>
+                    </div>
+                </div>
+                
+                <div class="story-description">
+                    <h4>Immersive Learning Experience</h4>
+                    <p>Taiken Story Lab transforms learning into an engaging narrative. You'll step into the shoes of a developer facing real-world challenges, making decisions that affect the story's outcome while learning practical skills.</p>
+                </div>
+                
+                <div class="current-story">
+                    <h4>Current Story: "The Startup Challenge"</h4>
+                    <div class="story-scenario">
+                        <div class="scenario-card">
+                            <div class="scenario-header">
+                                <i class="fas fa-code"></i>
+                                <h5>Chapter 2: The Bug Hunt</h5>
+                            </div>
+                            <div class="scenario-content">
+                                <p><strong>Scenario:</strong> You've joined a startup as their first frontend developer. The main application is crashing on production, and customers are complaining. Your task is to:</p>
+                                <ul>
+                                    <li>Debug the production issue using browser dev tools</li>
+                                    <li>Identify the JavaScript error causing the crash</li>
+                                    <li>Implement a fix without breaking existing features</li>
+                                    <li>Write tests to prevent future issues</li>
+                                </ul>
+                                <div class="scenario-skills">
+                                    <span class="skill-tag small">Debugging</span>
+                                    <span class="skill-tag small">JavaScript</span>
+                                    <span class="skill-tag small">Problem Solving</span>
+                                    <span class="skill-tag small">Git</span>
+                                </div>
+                            </div>
+                            <div class="scenario-status">
+                                <span class="status current"><i class="fas fa-spinner fa-spin"></i> In Progress</span>
+                                <span class="timer"><i class="fas fa-clock"></i> Estimated: 2-3 hours</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="story-achievements">
+                    <h4>Story Journey</h4>
+                    <div class="achievements-grid">
+                        <div class="story-achievement completed">
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <strong>Chapter 1: The Setup</strong>
+                                <small>Setup development environment and understand codebase</small>
+                            </div>
+                        </div>
+                        <div class="story-achievement current">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <div>
+                                <strong>Chapter 2: The Bug Hunt</strong>
+                                <small>Debug production issues and implement fixes</small>
+                            </div>
+                        </div>
+                        <div class="story-achievement locked">
+                            <i class="fas fa-lock"></i>
+                            <div>
+                                <strong>Chapter 3: The Feature Request</strong>
+                                <small>Implement new features from product specs</small>
+                            </div>
+                        </div>
+                        <div class="story-achievement locked">
+                            <i class="fas fa-lock"></i>
+                            <div>
+                                <strong>Chapter 4: The Launch</strong>
+                                <small>Prepare for production launch and deployment</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="story-benefits">
+                    <h4>What You'll Gain</h4>
+                    <div class="benefits-grid">
+                        <div class="benefit">
+                            <i class="fas fa-code"></i>
+                            <span>Real coding experience</span>
+                        </div>
+                        <div class="benefit">
+                            <i class="fas fa-project-diagram"></i>
+                            <span>Portfolio project</span>
+                        </div>
+                        <div class="benefit">
+                            <i class="fas fa-users"></i>
+                            <span>Team collaboration skills</span>
+                        </div>
+                        <div class="benefit">
+                            <i class="fas fa-briefcase"></i>
+                            <span>Job-ready experience</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="story-actions">
+                    <button class="btn primary large taiken" id="enterStoryBtn">
+                        <i class="fas fa-door-open"></i>
+                        Continue Story Journey
+                    </button>
+                    <button class="btn outline">
+                        <i class="fas fa-play-circle"></i>
+                        Preview Next Chapter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snackbar -->
+    <div class="snackbar">
+        <div class="snackbar-content">
+            <i class="fas fa-check-circle"></i>
+            <span>Job application submitted successfully!</span>
+        </div>
+    </div>
+    <script src="js/api-config"></script>
+    <script src="js/home.js"></script>
+</body>
+</html>

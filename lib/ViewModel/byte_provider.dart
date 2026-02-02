@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../Model/byte.dart';
 import '../Model/comment.dart';
+import 'plaro_points_service.dart';
 
 // Byte create state
 class ByteCreateState {
@@ -15,6 +16,8 @@ class ByteCreateState {
   final String? error;
   final bool isUploading;
   final double uploadProgress;
+  final List<String> tags;
+  final String? domain;
 
   ByteCreateState({
     this.selectedVideo,
@@ -23,6 +26,8 @@ class ByteCreateState {
     this.error,
     this.isUploading = false,
     this.uploadProgress = 0.0,
+    this.tags = const [],
+    this.domain,
   });
 
   ByteCreateState copyWith({
@@ -32,6 +37,8 @@ class ByteCreateState {
     String? error,
     bool? isUploading,
     double? uploadProgress,
+    List<String>? tags,
+    String? domain,
   }) {
     return ByteCreateState(
       selectedVideo: selectedVideo ?? this.selectedVideo,
@@ -40,6 +47,8 @@ class ByteCreateState {
       error: error ?? this.error,
       isUploading: isUploading ?? this.isUploading,
       uploadProgress: uploadProgress ?? this.uploadProgress,
+      tags: tags ?? this.tags,
+      domain: domain ?? this.domain,
     );
   }
 }
@@ -99,13 +108,22 @@ class BytesFeedState {
 
 // Byte create provider
 class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
-  ByteCreateNotifier() : super(ByteCreateState());
+  ByteCreateNotifier(this._pointsService) : super(ByteCreateState());
 
   final SupabaseClient _supabase = Supabase.instance.client;
   final ImagePicker _picker = ImagePicker();
+  final PlaroPointsService _pointsService;
 
   void updateCaption(String caption) {
     state = state.copyWith(caption: caption);
+  }
+
+  void updateTags(List<String> tags) {
+    state = state.copyWith(tags: tags);
+  }
+
+  void updateDomain(String domain) {
+    state = state.copyWith(domain: domain);
   }
 
   void clearError() {
@@ -175,6 +193,18 @@ class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
       return false;
     }
 
+    // DOMAIN VALIDATION
+    if (state.domain == null || state.domain!.isEmpty) {
+      state = state.copyWith(error: 'Please select a domain');
+      return false;
+    }
+
+    // TAGS VALIDATION
+    if (state.tags.isEmpty) {
+      state = state.copyWith(error: 'Please add at least one tag to help categorize your byte');
+      return false;
+    }
+
     final user = _supabase.auth.currentUser;
     if (user == null) {
       state = state.copyWith(error: 'Please log in to create a byte');
@@ -199,12 +229,14 @@ class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
         'user_id': user.id,
         'byte': videoUrl,
         'caption': state.caption.trim().isEmpty ? null : state.caption.trim(),
+        'tags': state.tags,
+        'domain': state.domain,
         'like_count': 0,
         'comment_count': 0,
         'share_count': 0,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
-      }).select();
+      }).select('byte_id');
 
       debugPrint('Database response: $response');
 
@@ -213,7 +245,26 @@ class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
         return false;
       }
 
+
+
       debugPrint('Byte created successfully with ID: ${response[0]['byte_id']}');
+
+      // Award points for creating byte
+      final byteId = response[0]['byte_id'];
+      debugPrint('Byte created successfully with ID: $byteId');
+
+      try {
+        await _pointsService.awardPointsForContent(
+          userId: user.id,
+          contentType: 'byte',
+          contentId: byteId,
+        );
+        debugPrint('Points awarded successfully');
+      } catch (pointsError) {
+        debugPrint('Failed to award points: $pointsError');
+        // Don't fail the whole operation if points fail
+      }
+
       state = ByteCreateState();
       return true;
     } catch (e, stackTrace) {
@@ -1072,9 +1123,10 @@ class BytesFeedNotifier extends StateNotifier<BytesFeedState> {
   }
 }
 
-final byteCreateProvider = StateNotifierProvider<ByteCreateNotifier, ByteCreateState>(
-      (ref) => ByteCreateNotifier(),
-);
+final byteCreateProvider = StateNotifierProvider<ByteCreateNotifier, ByteCreateState>((ref) {
+  final pointsService = ref.read(plaroPointsServiceProvider);
+  return ByteCreateNotifier(pointsService);
+});
 
 final bytesFeedProvider = StateNotifierProvider<BytesFeedNotifier, BytesFeedState>(
       (ref) => BytesFeedNotifier(),
