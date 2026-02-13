@@ -236,21 +236,12 @@ class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
         'share_count': 0,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
-      }).select('byte_id');
+      }).select('byte_id').single();
 
       debugPrint('Database response: $response');
 
-      if (response.isEmpty) {
-        state = state.copyWith(error: 'Failed to create byte - no response from database');
-        return false;
-      }
-
-
-
-      debugPrint('Byte created successfully with ID: ${response[0]['byte_id']}');
-
       // Award points for creating byte
-      final byteId = response[0]['byte_id'];
+      final byteId = response['byte_id'];
       debugPrint('Byte created successfully with ID: $byteId');
 
       try {
@@ -259,14 +250,18 @@ class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
           contentType: 'byte',
           contentId: byteId,
         );
-        debugPrint('Points awarded successfully');
-      } catch (pointsError) {
-        debugPrint('Failed to award points: $pointsError');
+
+        debugPrint('✅ Points awarded successfully for byte $byteId');
+
+      } catch (pointsError, pointsStack) {
+        debugPrint('❌ Failed to award points for byte $byteId: $pointsError');
+        debugPrint('Points stack trace: $pointsStack');
         // Don't fail the whole operation if points fail
       }
 
       state = ByteCreateState();
       return true;
+
     } catch (e, stackTrace) {
       debugPrint('Error creating byte: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -1131,3 +1126,5 @@ final byteCreateProvider = StateNotifierProvider<ByteCreateNotifier, ByteCreateS
 final bytesFeedProvider = StateNotifierProvider<BytesFeedNotifier, BytesFeedState>(
       (ref) => BytesFeedNotifier(),
 );
+
+

@@ -56,7 +56,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         await Supabase.instance.client.auth.verifyOTP(
           email: widget.email.trim(),
           token: _otp.trim(),
-          type: OtpType.email,
+          type: OtpType.magiclink, // signInWithOtp sends magiclink token type
         );
 
         // Check if user is now authenticated
@@ -90,19 +90,19 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           type: OtpType.recovery,
         );
 
-        // Get the current session for reset token
+        // Get the current session — contains both tokens after verifyOTP
         final session = Supabase.instance.client.auth.currentSession;
         if (session != null) {
           if (mounted) {
             _showMessage('OTP verified! You can now reset your password.', Colors.green);
             await Future.delayed(const Duration(milliseconds: 500));
 
-            // Navigate to reset password with access token
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => ResetPasswordPage(
-                  resetToken: session.accessToken,
+                  accessToken: session.accessToken,
+                  refreshToken: session.refreshToken,   // ✅ required by setSession
                 ),
               ),
             );
@@ -146,19 +146,21 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                 MaterialPageRoute(builder: (context) => const OnboardingFlow()),
               );
             } else {
-              // For password reset
-              final resetToken = response.data['resetToken'];
-              if (resetToken != null && resetToken.isNotEmpty) {
+              // For password reset fallback via edge function
+              final accessToken = response.data['accessToken'];
+              final refreshToken = response.data['refreshToken'];
+              if (accessToken != null && refreshToken != null) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (context) => ResetPasswordPage(
-                      resetToken: resetToken,
+                      accessToken: accessToken,
+                      refreshToken: refreshToken,       // ✅ required by setSession
                     ),
                   ),
                 );
               } else {
-                throw Exception('No reset token received');
+                throw Exception('No tokens received for password reset');
               }
             }
           }

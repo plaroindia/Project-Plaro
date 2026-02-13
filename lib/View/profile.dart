@@ -17,6 +17,7 @@ import 'widgets/lightbox_overlay.dart';
 import '../View/post_full_screen.dart' as post_screen;
 import '../View/bytes_full_screen.dart';
 import 'widgets/follow_button.dart';
+import '../ViewModel/post_rating_provider.dart';
 
 class OtherProfileScreen extends ConsumerStatefulWidget {
   final String? userId;
@@ -552,6 +553,15 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
                                           color: Colors.green, fontSize: 11.0),
                                     ),
                                   ),
+                                  // Verify icon — only own profile + professional role
+                                  if (isOwnProfile &&
+                                      profile.role == 'professional') ...[
+                                    const SizedBox(width: 6),
+                                    _VerifyIcon(
+                                      isVerified: profile.isVerified ?? false,
+                                      userId: profile.user_id ?? '',
+                                    ),
+                                  ],
                                 ],
                               ),
                             if (profile.location != null)
@@ -1434,6 +1444,147 @@ class ProfilePostsGrid extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Verify Icon — shown next to role chip for own professional profiles
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _VerifyIcon extends ConsumerWidget {
+  final bool isVerified;
+  final String userId;
+
+  const _VerifyIcon({required this.isVerified, required this.userId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (isVerified) {
+      // Already verified — show static blue checkmark, no tap
+      return const Tooltip(
+        message: 'Verified Professional',
+        child: Icon(Icons.verified, color: Colors.blue, size: 18),
+      );
+    }
+
+    // Not yet verified — show tappable shield icon
+    return GestureDetector(
+      onTap: () => _showVerifyDialog(context, ref),
+      child: Tooltip(
+        message: 'Get Verified',
+        child: Icon(
+          Icons.verified_outlined,
+          color: Colors.grey.shade500,
+          size: 18,
+        ),
+      ),
+    );
+  }
+
+  void _showVerifyDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _VerifyDialog(userId: userId),
+    );
+  }
+}
+
+class _VerifyDialog extends ConsumerStatefulWidget {
+  final String userId;
+
+  const _VerifyDialog({required this.userId});
+
+  @override
+  ConsumerState<_VerifyDialog> createState() => _VerifyDialogState();
+}
+
+class _VerifyDialogState extends ConsumerState<_VerifyDialog> {
+  bool _loading = false;
+
+  Future<void> _verify() async {
+    setState(() => _loading = true);
+    try {
+      await Supabase.instance.client
+          .from('user_profiles')
+          .update({'is_verified': true})
+          .eq('user_id', widget.userId);
+
+      // Refresh the profile state so the icon updates immediately
+      await ref.read(setProfileProvider.notifier).getUserProfile(widget.userId);
+
+      // Invalidate the cached verification check so RankedByDialog
+      // re-fetches and shows the Rate button straight away
+      ref.invalidate(isVerifiedProfessionalProvider);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account verified!'),
+            backgroundColor: Colors.blue,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: const [
+          Icon(Icons.verified_outlined, color: Colors.blue, size: 22),
+          SizedBox(width: 10),
+          Text('Verify Account',
+              style: TextStyle(color: Colors.white, fontSize: 17)),
+        ],
+      ),
+      content: const Text(
+        'Verifying your account lets you rate educational posts as a professional.',
+        style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.of(context).pop(),
+          child:
+          const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: _loading ? null : _verify,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          ),
+          child: _loading
+              ? const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Colors.white),
+          )
+              : const Text('Verify',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      ],
     );
   }
 }

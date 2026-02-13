@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ResetPasswordPage extends StatefulWidget {
-  final String? resetToken;
+  final String? accessToken;
+  final String? refreshToken;
 
-  const ResetPasswordPage({super.key, this.resetToken});
+  const ResetPasswordPage({super.key, this.accessToken, this.refreshToken});
 
   @override
   State<ResetPasswordPage> createState() => _ResetPasswordPageState();
@@ -26,13 +27,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   }
 
   Future<void> _initializeSession() async {
-    if (widget.resetToken != null && widget.resetToken!.isNotEmpty) {
+    if (widget.refreshToken != null && widget.refreshToken!.isNotEmpty) {
       try {
-        await Supabase.instance.client.auth.setSession(widget.resetToken!);
-        print('Session initialized with reset token');
+        // ✅ Supabase Flutter's setSession() takes the REFRESH token, not access token
+        await Supabase.instance.client.auth.setSession(widget.refreshToken!);
+        print('Session initialized for password reset');
       } catch (e) {
         print('Could not initialize session: $e');
-        // Don't show error here - user can still try
       }
     }
   }
@@ -416,7 +417,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 ),
 
                 // Warning message if session might be expired
-                if (widget.resetToken != null)
+                if (widget.accessToken != null)
                   Container(
                     margin: const EdgeInsets.only(top: 16),
                     padding: const EdgeInsets.all(12),
@@ -542,7 +543,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 ),
 
                 // Alternative: Request new link button
-                if (widget.resetToken != null)
+                if (widget.accessToken != null)
                   TextButton(
                     onPressed: _loading ? null : _requestNewResetLink,
                     child: const Text(

@@ -13,6 +13,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'zoomable_image.dart';
 import 'double_tap_like.dart';
 import 'full_screen_image_viewer.dart';
+import '../ratings_dialogs.dart';
 
 class _LocalVideoPlayer extends StatefulWidget {
   final File file;
@@ -318,6 +319,11 @@ class _PostCardState extends ConsumerState<PostCard> {
                         ],
                       ),
                     ),
+                    // ── Rating icons (Ranked-By then Star, right-to-left) ──
+                    if (currentPost.post_id != null) ...[
+                      PostRankedByIcon(postId: currentPost.post_id!),
+                      PostStarRatingIcon(postId: currentPost.post_id!),
+                    ],
                     IconButton(
                       icon: Icon(Icons.more_vert, color: theme.dividerColor),
                       onPressed: () {
@@ -525,25 +531,25 @@ class _PostCardState extends ConsumerState<PostCard> {
               child: CachedNetworkImage(
                 imageUrl: mediaUrl,
                 fit: BoxFit.cover,
-              width: double.infinity,
-              memCacheWidth: 800, // Optimize memory usage
-              maxWidthDiskCache: 1000, // Disk cache size
-              placeholder: (context, url) => Container(
-                color: theme.cardTheme.color,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: theme.colorScheme.primary,
+                width: double.infinity,
+                memCacheWidth: 800, // Optimize memory usage
+                maxWidthDiskCache: 1000, // Disk cache size
+                placeholder: (context, url) => Container(
+                  color: theme.cardTheme.color,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: theme.cardTheme.color,
-                child: Icon(
-                  Icons.image_not_supported,
-                  color: theme.dividerColor,
-                  size: 50,
+                errorWidget: (context, url, error) => Container(
+                  color: theme.cardTheme.color,
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: theme.dividerColor,
+                    size: 50,
+                  ),
                 ),
-              ),
               ),
             ),
           ),
@@ -599,21 +605,21 @@ class _PostCardState extends ConsumerState<PostCard> {
                           child: Image.network(
                             mediaUrl,
                             fit: BoxFit.cover,
-                          width: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: theme.cardTheme.color,
-                              child: Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  color: theme.dividerColor,
-                                  size: 50,
+                            width: double.infinity,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: theme.cardTheme.color,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: theme.dividerColor,
+                                    size: 50,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),),
+                              );
+                            },
+                          ),
+                        ),),
                     ),
                   );
                 },
@@ -1038,7 +1044,7 @@ class CommentSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final postFeedState = ref.read(postFeedProvider);
-    
+
     return UnifiedCommentsBottomSheet(
       contentId: postId,
       title: 'Comments',

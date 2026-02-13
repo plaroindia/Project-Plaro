@@ -51,11 +51,23 @@ class PlaroPointsService {
       'course': 15,
     };
 
+    // Maps contentType to a valid plaro_transactions.source value.
+    // Must match the CHECK constraint on the source column exactly.
+    // 'byte' uses 'post_published' because both are published feed content
+    // and the DB constraint does not include a separate 'byte_published' entry.
+    final sourceMap = {
+      'post': 'post_published',
+      'byte': 'post_published',
+      'taiken': 'taiken_created',
+      'course': 'course_completed',
+    };
+
     final points = pointsMap[contentType] ?? 1;
+    final source = sourceMap[contentType] ?? 'post_published';
 
     await _insertTransaction(
       userId: userId,
-      source: '${contentType}_published',
+      source: source,
       points: points,
       contentType: contentType,
       contentId: contentId,
@@ -117,13 +129,21 @@ class PlaroPointsService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      // Normalise contentId: Supabase may return integer PKs as `num` instead
+      // of `int` depending on the JSON codec.  Cast explicitly so the column
+      // routing below works reliably for both posts and bytes.
+      dynamic normalizedContentId = contentId;
+      if (contentId is num && contentId is! int) {
+        normalizedContentId = contentId.toInt();
+      }
+
       await _supabase.from('plaro_transactions').insert({
         'user_id': userId,
         'source': source,
         'points': points,
         'related_content_type': contentType,
-        if (contentId is int) 'related_content_id_int': contentId,
-        if (contentId is String) 'related_content_id_uuid': contentId,
+        if (normalizedContentId is int) 'related_content_id_int': normalizedContentId,
+        if (normalizedContentId is String) 'related_content_id_uuid': normalizedContentId,
         'reason': reason,
         'metadata': metadata,
       });
