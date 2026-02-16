@@ -657,52 +657,66 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
               child: Row(
                 children: [
 
-                  // Plaro Points & Consistency (Right side)
+                  // Plaro Points & progress
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Plaro Points
+                        // Plaro Points card
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.amber.withOpacity(0.3),
-                                Colors.orange.withOpacity(0.1),
+                                Colors.amber.withOpacity(0.18),
+                                Colors.orange.withOpacity(0.08),
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.amber,
-                              width: 1.5,
+                              color: Colors.amber.withOpacity(0.6),
+                              width: 1.2,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.amber.withOpacity(0.1),
+                                blurRadius: 12,
+                                spreadRadius: 0,
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.toll,
-                                color: Colors.amber,
-                                size: 20,
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.toll,
+                                    color: Colors.amber, size: 18),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
                                     'Plaro Points',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Colors.white54,
                                       fontSize: 10,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
                                   Text(
                                     _formatPoints(profile.totalPoints),
                                     style: const TextStyle(
                                       color: Colors.amber,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.2,
                                     ),
                                   ),
                                 ],
@@ -713,95 +727,77 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
 
                         // Progress to next rank
                         if (nextThreshold > 0) ...[
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    backgroundColor:
+                                    Colors.grey.withOpacity(0.2),
+                                    valueColor: AlwaysStoppedAnimation(
+                                        rankInfo['color']),
+                                    minHeight: 4,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${(progress * 100).toInt()}%',
+                                style: TextStyle(
+                                  color: rankInfo['color'],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
                           Text(
                             '${_formatPoints(profile.totalPoints)} / ${_formatPoints(nextThreshold)} to next rank',
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: TextStyle(
+                              color: Colors.grey[600],
                               fontSize: 10,
                             ),
                           ),
                         ],
-
-                        // const SizedBox(height: 12),
-                        //
-                        // // Consistency Score
-                        // if (profile.consistencyScore > 0.3)
-                        //   Container(
-                        //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        //     decoration: BoxDecoration(
-                        //       gradient: LinearGradient(
-                        //         colors: [
-                        //           Colors.green.withOpacity(0.3),
-                        //           Colors.teal.withOpacity(0.1),
-                        //         ],
-                        //       ),
-                        //       borderRadius: BorderRadius.circular(12),
-                        //       border: Border.all(
-                        //         color: Colors.green,
-                        //         width: 1.5,
-                        //       ),
-                        //     ),
-                        //     child: Row(
-                        //       mainAxisSize: MainAxisSize.min,
-                        //       children: [
-                        //         Icon(
-                        //           Icons.trending_up,
-                        //           color: Colors.green[400],
-                        //           size: 16,
-                        //         ),
-                        //         const SizedBox(width: 6),
-                        //         Text(
-                        //           'Consistency: ${(profile.consistencyScore * 100).toInt()}%',
-                        //           style: TextStyle(
-                        //             color: Colors.green[400],
-                        //             fontSize: 12,
-                        //             fontWeight: FontWeight.w600,
-                        //           ),
-                        //         ),
-                        //       ],
-                        //     ),
-                        //   ),
                       ],
                     ),
                   ),
 
+                  const SizedBox(width: 20.0),
 
-                  const SizedBox(width: 30.0),
-
-                  // Circular Progress Bar (matching profile picture size)
+                  // Rank ring
                   SizedBox(
-                    width: 90, // Same as profile picture diameter (68*2)
-                    height: 90,
+                    width: 96,
+                    height: 96,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Circular progress indicator
                         SizedBox(
-                          width: 90,
-                          height: 90,
+                          width: 96,
+                          height: 96,
                           child: CircularProgressIndicator(
                             value: progress,
-                            strokeWidth: 10,
-                            backgroundColor: Colors.grey[800],
-                            valueColor: AlwaysStoppedAnimation(rankInfo['color']),
+                            strokeWidth: 8,
+                            backgroundColor:
+                            rankInfo['color'].withOpacity(0.15),
+                            valueColor:
+                            AlwaysStoppedAnimation(rankInfo['color']),
+                            strokeCap: StrokeCap.round,
                           ),
                         ),
-                        // Center content - Rank badge (trying to use network image-like styling)
                         Container(
-                          width: 100,
-                          height: 100,
+                          width: 76,
+                          height: 76,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                rankInfo['color'].withOpacity(0.2),
-                                Colors.black.withOpacity(0.3),
-                              ],
-                            ),
+                            color: rankInfo['color'].withOpacity(0.1),
                             border: Border.all(
-                              color: rankInfo['color'].withOpacity(0.5),
-                              width: 2,
+                              color: rankInfo['color'].withOpacity(0.3),
+                              width: 1.5,
                             ),
                           ),
                           child: Column(
@@ -810,16 +806,16 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
                               Icon(
                                 rankInfo['icon'],
                                 color: rankInfo['color'],
-                                size: 36,
+                                size: 28,
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 rankInfo['label'],
                                 style: TextStyle(
                                   color: rankInfo['color'],
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                             ],
@@ -828,8 +824,6 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
                       ],
                     ),
                   ),
-
-
                 ],
               ),
             );
@@ -844,52 +838,33 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
         profileState.when(
           data: (profile) => profile != null
               ? Padding(
-            padding: const EdgeInsets.only(top: 10.0),
-            child: SizedBox(
-              height: 60,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: _buildStatItem(
-                      'Followers',
-                      profile.followersCount?.toString() ?? '0',
-                      profile,
-                    ),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildStatItem(
+                    'Followers',
+                    profile.followersCount?.toString() ?? '0',
+                    profile,
                   ),
-                  SizedBox(
-                    height: 30,
-                    child: VerticalDivider(
-                      color: Colors.grey[600],
-                      thickness: 1,
-                      width: 1,
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatItem(
+                    'Following',
+                    profile.followingCount?.toString() ?? '0',
+                    profile,
                   ),
-                  Flexible(
-                    child: _buildStatItem(
-                      'Following',
-                      profile.followingCount?.toString() ?? '0',
-                      profile,
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatItem(
+                    'Streak 🔥',
+                    profile.streakCount?.toString() ?? '0',
+                    profile,
                   ),
-                  SizedBox(
-                    height: 30,
-                    child: VerticalDivider(
-                      color: Colors.grey[600],
-                      thickness: 1,
-                      width: 1,
-                    ),
-                  ),
-                  Flexible(
-                    child: _buildStatItem(
-                      'Streak',
-                      profile.streakCount?.toString() ?? '0',
-                      profile,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           )
               : const SizedBox.shrink(),
@@ -903,95 +878,86 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
 
   // OPTIMIZATION: Cached avatar with placeholder
   Widget _buildCachedAvatar(String? imageUrl) {
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return const CircleAvatar(
-        backgroundImage: AssetImage('assets/plaro_logo.png'),
-        radius: 68.0,
-      );
-    }
-
-    return CachedNetworkImage(
-      imageUrl: imageUrl,
-      imageBuilder: (context, imageProvider) => CircleAvatar(
-        backgroundImage: imageProvider,
-        radius: 68.0,
-      ),
-      placeholder: (context, url) => CircleAvatar(
-        radius: 68.0,
-        backgroundColor: Colors.grey[800],
-        child: const CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.35),
+            blurRadius: 20,
+            spreadRadius: 3,
+          ),
+        ],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0077FF), Color(0xFF00C6FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
-      errorWidget: (context, url, error) => const CircleAvatar(
-        backgroundImage: AssetImage('assets/plaro_logo.png'),
-        radius: 68.0,
+      padding: const EdgeInsets.all(3),
+      child: CircleAvatar(
+        radius: 66.0,
+        backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+            ? CachedNetworkImageProvider(imageUrl)
+            : const AssetImage('assets/plaro_logo.png') as ImageProvider,
+        backgroundColor: Colors.grey[900],
       ),
     );
   }
 
   Widget _buildActionButtons(FollowState? followState) {
     if (isOwnProfile) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black54,
-              side: const BorderSide(width: 3.0, color: Colors.blue),
-              foregroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ProfileButton(
+                label: 'Edit Profile',
+                icon: Icons.edit_outlined,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SetProfile()),
+                  ).then((_) => _refreshProfile());
+                },
               ),
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SetProfile()),
-              ).then((_) => _refreshProfile());
-            },
-            child: const Text("Profile"),
-          ),
-          const SizedBox(width: 30.0),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.blue,
-              backgroundColor: Colors.black54,
-              side: const BorderSide(width: 3.0, color: Colors.blue),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _ProfileButton(
+                label: 'Stats',
+                icon: Icons.bar_chart_rounded,
+                onPressed: () {},
               ),
             ),
-            onPressed: () {},
-            child: const Text("Stats"),
-          ),
-        ],
+          ],
+        ),
       );
     } else {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          FollowButton(
-            targetUserId: targetUserId,
-            compact: false,
-            onFollowSuccess: () {
-              ref.read(setProfileProvider.notifier).getUserProfile(targetUserId);
-            },
-          ),
-          const SizedBox(width: 30.0),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black54,
-              side: const BorderSide(width: 2.0, color: Colors.blue),
-              foregroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: FollowButton(
+                targetUserId: targetUserId,
+                compact: false,
+                onFollowSuccess: () {
+                  ref.read(setProfileProvider.notifier).getUserProfile(targetUserId);
+                },
               ),
             ),
-            onPressed: _openChat,
-            child: const Text("Message"),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: _ProfileButton(
+                label: 'Message',
+                icon: Icons.chat_bubble_outline_rounded,
+                onPressed: _openChat,
+              ),
+            ),
+          ],
+        ),
       );
     }
   }
@@ -999,39 +965,59 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
   Widget _buildTabBar(ProfileFeedState feedState) {
     return Container(
       color: Colors.black,
-      child: TabBar(
-        isScrollable: true,
-        controller: _tabController,
-        indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(width: 2, color: Colors.blue[400]!),
-          insets: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14),
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelColor: Colors.blue,
-        unselectedLabelColor: Colors.grey,
-        physics: const BouncingScrollPhysics(),
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.view_array_outlined, size: 16),
-                const SizedBox(width: 4),
-                Text('Posts (${feedState.posts.length})'),
-              ],
+        child: TabBar(
+          controller: _tabController,
+          indicator: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0077FF), Color(0xFF00C6FF)],
             ),
+            borderRadius: BorderRadius.circular(12),
           ),
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.video_library_outlined, size: 16),
-                const SizedBox(width: 4),
-                Text('Bytes (${feedState.bytes.length})'),
-              ],
+          indicatorSize: TabBarIndicatorSize.tab,
+          indicatorPadding: const EdgeInsets.all(4),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.grey,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 13,
+          ),
+          dividerColor: Colors.transparent,
+          physics: const BouncingScrollPhysics(),
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.view_array_outlined, size: 15),
+                  const SizedBox(width: 5),
+                  Text('Posts (${feedState.posts.length})'),
+                ],
+              ),
             ),
-          ),
-        ],
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.video_library_outlined, size: 15),
+                  const SizedBox(width: 5),
+                  Text('Bytes (${feedState.bytes.length})'),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1238,27 +1224,84 @@ class _OtherProfileScreen extends ConsumerState<OtherProfileScreen>
         );
       }
           : null,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            width: 1,
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                height: 1.1,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Reusable pill button for profile action row
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ProfileButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _ProfileButton({
+    required this.label,
+    required this.icon,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white.withOpacity(0.08),
+        foregroundColor: Colors.white,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        side: BorderSide(
+          color: Colors.blue.withOpacity(0.5),
+          width: 1.2,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        textStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      onPressed: onPressed,
     );
   }
 }

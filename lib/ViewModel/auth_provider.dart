@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../config/app_config.dart';
+import 'post_rating_provider.dart';
 
 final supAuthProv = Provider((ref) => Supabase.instance.client.auth);
 
@@ -187,6 +188,14 @@ class AuthController {
       await _googleSignIn.signOut();
       await _googleSignIn.disconnect();
       debugPrint('Google session disconnected');
+
+      // Belt-and-suspenders: explicitly bust the role cache so the next user
+      // never sees a stale professional/educator status from the previous session.
+      // The primary fix is that isVerifiedProfessionalProvider watches
+      // authStateProvider, but this handles any edge-cases (e.g. token expiry
+      // or navigation flows that bypass the stream).
+      ref.invalidate(isVerifiedProfessionalProvider);
+      debugPrint('Role provider cache cleared');
     } catch (e) {
       debugPrint('Logout error: $e');
     }

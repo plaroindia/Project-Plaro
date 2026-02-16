@@ -5,10 +5,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../Model/post.dart';
 import '../../ViewModel/post_feed_provider.dart';
-import '../../ViewModel/theme_provider.dart'; // Add this import
+import '../../ViewModel/theme_provider.dart';
 import 'unified_comments_bottom_sheet.dart';
 import 'dart:io';
-// import '../profile.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'zoomable_image.dart';
 import 'double_tap_like.dart';
@@ -88,368 +87,463 @@ class _PostCardState extends ConsumerState<PostCard> {
 
     // For preview posts, use the widget.post directly and don't access postFeedState
     if (widget.isPreview) {
-      return Card(
-        color: theme.cardTheme.color,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(3),
-        ),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // User Info Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8.0,8.0,8.0,0),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: widget.post.profile_pic != null
-                          ? NetworkImage(widget.post.profile_pic!)
-                          : const AssetImage('assets/plaro_logo.png') as ImageProvider,
-                      radius: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.post.username ?? 'Unknown User',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+      return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: theme.cardTheme.color,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // User Info Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 4, 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.secondary,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
                           ),
-                          Text(
-                            _formatTimeAgo(widget.post.created_at),
-                            style: TextStyle(
-                              color: theme.dividerColor,
-                              fontSize: 12,
+                          padding: const EdgeInsets.all(2),
+                          child: CircleAvatar(
+                            backgroundImage: widget.post.profile_pic != null
+                                ? NetworkImage(widget.post.profile_pic!)
+                                : const AssetImage('assets/plaro_logo.png')
+                            as ImageProvider,
+                            radius: 19,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.post.username ?? 'Unknown User',
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                _formatTimeAgo(widget.post.created_at),
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.4),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.more_horiz,
+                              color: theme.colorScheme.onSurface.withOpacity(0.3)),
+                          onPressed: null,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Title
+                  if (widget.post.title != null && widget.post.title!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                      child: Text(
+                        widget.post.title!,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+
+                  // Media Section
+                  if ((widget.post.media_urls != null && widget.post.media_urls!.isNotEmpty) ||
+                      (widget.post.localMediaFiles != null && widget.post.localMediaFiles!.isNotEmpty))
+                    _buildMediaSection(widget.post.media_urls ?? [], widget.post.localMediaFiles),
+
+                  // Content
+                  if (widget.post.content != null && widget.post.content!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                      child: Text(
+                        widget.post.content!,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withOpacity(0.78),
+                          fontSize: 14,
+                          height: 1.55,
+                        ),
+                        maxLines: 10,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+
+                  // Tags
+                  if (widget.post.tags != null && widget.post.tags!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 5,
+                        children: widget.post.tags!.map((tag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color:
+                                  theme.colorScheme.primary.withOpacity(0.3),
+                                  width: 1),
                             ),
+                            child: Text(
+                              '#$tag',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+
+                  // Action Buttons - All disabled for preview
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                    child: Container(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurface.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _ActionButton(
+                            icon: Icons.favorite_outline_rounded,
+                            label: '0',
+                            color: theme.colorScheme.onSurface.withOpacity(0.3),
+                            onPressed: null,
+                          ),
+                          _VerticalDivider(),
+                          _ActionButton(
+                            icon: Icons.mode_comment_outlined,
+                            label: '0',
+                            color: theme.colorScheme.onSurface.withOpacity(0.3),
+                            onPressed: null,
+                          ),
+                          _VerticalDivider(),
+                          _ActionButton(
+                            icon: Icons.reply_rounded,
+                            label: '0',
+                            color: theme.colorScheme.onSurface.withOpacity(0.3),
+                            onPressed: null,
+                          ),
+                          _VerticalDivider(),
+                          _ActionButton(
+                            icon: Icons.bookmark_outline_rounded,
+                            label: '',
+                            color: theme.colorScheme.onSurface.withOpacity(0.3),
+                            onPressed: null,
                           ),
                         ],
                       ),
                     ),
-                    // Disable more options for preview
-                    IconButton(
-                      icon: Icon(Icons.more_vert, color: theme.dividerColor),
-                      onPressed: null, // Disabled for preview
-                    ),
-                  ],
-                ),
-              ),
-
-              // Title
-              if (widget.post.title != null && widget.post.title!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8.0,0.0,8.0,2.0),
-                  child: Text(
-                    widget.post.title!,
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-              // Media Section
-              if ((widget.post.media_urls != null && widget.post.media_urls!.isNotEmpty) ||
-                  (widget.post.localMediaFiles != null && widget.post.localMediaFiles!.isNotEmpty))
-                _buildMediaSection(widget.post.media_urls ?? [], widget.post.localMediaFiles),
-
-              // Content
-              if (widget.post.content != null && widget.post.content!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    widget.post.content!,
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface.withOpacity(0.8),
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                    maxLines: 10,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-              // Tags
-              if (widget.post.tags != null && widget.post.tags!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: widget.post.tags!.map((tag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
-                        ),
-                        child: Text(
-                          '#$tag',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-              // Action Buttons - All disabled for preview
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  // Like Button - disabled
-                  _ActionButton(
-                    icon: Icons.favorite_border,
-                    label: '0',
-                    color: theme.dividerColor,
-                    onPressed: null, // Disabled for preview
-                  ),
-
-                  // Comment Button - disabled
-                  _ActionButton(
-                    icon: Icons.comment_outlined,
-                    label: '0',
-                    color: theme.dividerColor,
-                    onPressed: null, // Disabled for preview
-                  ),
-
-                  // Share Button - disabled
-                  _ActionButton(
-                    icon: Icons.share_outlined,
-                    label: '0',
-                    color: theme.dividerColor,
-                    onPressed: null, // Disabled for preview
-                  ),
-
-                  // Bookmark Button - disabled
-                  _ActionButton(
-                    icon: Icons.bookmark_border,
-                    label: '',
-                    color: theme.dividerColor,
-                    onPressed: null, // Disabled for preview
                   ),
                 ],
               ),
-            ],
+            ),
+          )) ;
+      }
+
+          // Original code for non-preview posts
+          final postFeedState = ref.watch(postFeedProvider);
+      final currentPost = postFeedState.posts.firstWhere(
+              (p) => p.post_id == widget.post.post_id,
+          orElse: () => widget.post
+      );
+
+      final isLiking = postFeedState.likingPosts.contains(widget.post.post_id);
+
+      // Show error if there's one
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (postFeedState.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(postFeedState.error!),
+              backgroundColor: Colors.red,
+              action: SnackBarAction(
+                label: 'Dismiss',
+                onPressed: () => ref.read(postFeedProvider.notifier).clearError(),
+              ),
+            ),
+          );
+        }
+      });
+
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header ───────────────────────────────────────
+                GestureDetector(
+                  onTap: widget.onUserInfo,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 4, 10),
+                    child: Row(
+                      children: [
+                        // Avatar with ring
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.secondary,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(2),
+                          child: CircleAvatar(
+                            backgroundImage: currentPost.profile_pic != null
+                                ? CachedNetworkImageProvider(currentPost.profile_pic!)
+                                : const AssetImage('assets/plaro_logo.png')
+                            as ImageProvider,
+                            radius: 19,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentPost.username ?? 'Unknown User',
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                _formatTimeAgo(currentPost.created_at),
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.4),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Rating icons
+                        if (currentPost.post_id != null) ...[
+                          PostRankedByIcon(postId: currentPost.post_id!),
+                          PostStarRatingIcon(postId: currentPost.post_id!),
+                        ],
+                        IconButton(
+                          icon: Icon(Icons.more_horiz,
+                              color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                          onPressed: () => _showMoreOptions(context, currentPost),
+                          splashRadius: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Title ────────────────────────────────────────
+                if (currentPost.title != null && currentPost.title!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                    child: Text(
+                      currentPost.title!,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        height: 1.3,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ),
+
+                // ── Media ─────────────────────────────────────────
+                if ((currentPost.media_urls != null &&
+                    currentPost.media_urls!.isNotEmpty) ||
+                    (currentPost.localMediaFiles != null &&
+                        currentPost.localMediaFiles!.isNotEmpty))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                    child: _buildMediaSection(
+                        currentPost.media_urls ?? [], currentPost.localMediaFiles),
+                  ),
+
+                // ── Content ──────────────────────────────────────
+                if (currentPost.content != null && currentPost.content!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                    child: Text(
+                      currentPost.content!,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface.withOpacity(0.78),
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                      maxLines: 10,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+
+                // ── Tags ─────────────────────────────────────────
+                if (currentPost.tags != null && currentPost.tags!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 5,
+                      children: currentPost.tags!.map((tag) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: theme.colorScheme.primary.withOpacity(0.3),
+                                width: 1),
+                          ),
+                          child: Text(
+                            '#$tag',
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                // ── Action Bar ───────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                  child: Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _ActionButton(
+                          icon: currentPost.isliked
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_outline_rounded,
+                          label: '${currentPost.like_count}',
+                          color: currentPost.isliked
+                              ? Colors.redAccent
+                              : theme.colorScheme.onSurface.withOpacity(0.5),
+                          isLoading: isLiking,
+                          onPressed: isLiking
+                              ? null
+                              : () {
+                            if (currentPost.post_id != null) {
+                              ref
+                                  .read(postFeedProvider.notifier)
+                                  .toggleLike(currentPost.post_id!);
+                            }
+                          },
+                        ),
+                        _VerticalDivider(),
+                        _ActionButton(
+                          icon: Icons.mode_comment_outlined,
+                          label: '${currentPost.comment_count}',
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          onPressed: () =>
+                              _showCommentsSheet(context, currentPost.post_id!),
+                        ),
+                        _VerticalDivider(),
+                        _ActionButton(
+                          icon: Icons.reply_rounded,
+                          label: '${currentPost.share_count ?? 0}',
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          onPressed: () => _sharePost(context, currentPost),
+                        ),
+                        _VerticalDivider(),
+                        _ActionButton(
+                          icon: _isBookmarked
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_outline_rounded,
+                          label: '',
+                          color: _isBookmarked
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface.withOpacity(0.5),
+                          onPressed: _toggleBookmark,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
-
-    // Original code for non-preview posts
-    final postFeedState = ref.watch(postFeedProvider);
-    final currentPost = postFeedState.posts.firstWhere(
-            (p) => p.post_id == widget.post.post_id,
-        orElse: () => widget.post
-    );
-
-    final isLiking = postFeedState.likingPosts.contains(widget.post.post_id);
-
-    // Show error if there's one
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (postFeedState.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(postFeedState.error!),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Dismiss',
-              onPressed: () => ref.read(postFeedProvider.notifier).clearError(),
-            ),
-          ),
-        );
-      }
-    });
-
-    return Card(
-      color: theme.cardTheme.color,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: InkWell(
-        onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Info Header
-            GestureDetector(
-              onTap: widget.onUserInfo,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8.0,8.0,8.0,0),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: currentPost.profile_pic != null
-                          ? CachedNetworkImageProvider(currentPost.profile_pic!)
-                          : const AssetImage('assets/plaro_logo.png') as ImageProvider,
-                      radius: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            currentPost.username ?? 'Unknown User',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            _formatTimeAgo(currentPost.created_at),
-                            style: TextStyle(
-                              color: theme.dividerColor,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // ── Rating icons (Ranked-By then Star, right-to-left) ──
-                    if (currentPost.post_id != null) ...[
-                      PostRankedByIcon(postId: currentPost.post_id!),
-                      PostStarRatingIcon(postId: currentPost.post_id!),
-                    ],
-                    IconButton(
-                      icon: Icon(Icons.more_vert, color: theme.dividerColor),
-                      onPressed: () {
-                        _showMoreOptions(context, currentPost);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Title
-            if (currentPost.title != null && currentPost.title!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8.0,0.0,8.0,2.0),
-                child: Text(
-                  currentPost.title!,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-            // Media Section
-            if ((currentPost.media_urls != null && currentPost.media_urls!.isNotEmpty) ||
-                (currentPost.localMediaFiles != null && currentPost.localMediaFiles!.isNotEmpty))
-              _buildMediaSection(currentPost.media_urls ?? [], currentPost.localMediaFiles),
-
-            // Content
-            if (currentPost.content != null && currentPost.content!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  currentPost.content!,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface.withOpacity(0.8),
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                  maxLines: 10,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-            // Tags
-            if (currentPost.tags != null && currentPost.tags!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: currentPost.tags!.map((tag) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5)),
-                      ),
-                      child: Text(
-                        '#$tag',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                // Like Button
-                _ActionButton(
-                  icon: currentPost.isliked ? Icons.favorite : Icons.favorite_border,
-                  label: '${currentPost.like_count}',
-                  color: currentPost.isliked ? Colors.red : theme.dividerColor,
-                  isLoading: isLiking,
-                  onPressed: isLiking ? null : () {
-                    if (currentPost.post_id != null) {
-                      ref.read(postFeedProvider.notifier).toggleLike(currentPost.post_id!);
-                    }
-                  },
-                ),
-
-                // Comment Button
-                _ActionButton(
-                  icon: Icons.comment_outlined,
-                  label: '${currentPost.comment_count}',
-                  color: theme.dividerColor,
-                  onPressed: () {
-                    _showCommentsSheet(context, currentPost.post_id!);
-                  },
-                ),
-
-                // Share Button
-                _ActionButton(
-                  icon: Icons.share_outlined,
-                  label: '${currentPost.share_count ?? 0}',
-                  color: theme.dividerColor,
-                  onPressed: () {
-                    _sharePost(context, currentPost);
-                  },
-                ),
-
-                // Bookmark Button
-                _ActionButton(
-                  icon: _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                  label: '',
-                  color: _isBookmarked ? theme.colorScheme.primary : theme.dividerColor,
-                  onPressed: () {
-                    _toggleBookmark();
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // Media Section Builder
   Widget _buildMediaSection(List<String> mediaUrls, List<XFile>? localFiles) {
@@ -842,6 +936,21 @@ Shared from MyApp
   }
 }
 
+// Thin divider between action buttons
+class _VerticalDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 18,
+      child: VerticalDivider(
+        width: 1,
+        thickness: 1,
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.08),
+      ),
+    );
+  }
+}
+
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -861,9 +970,10 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -877,15 +987,28 @@ class _ActionButton extends StatelessWidget {
                 ),
               )
             else
-              Icon(icon, color: color, size: 20),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                switchInCurve: Curves.elasticOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => ScaleTransition(
+                  scale: anim,
+                  child: child,
+                ),
+                child: Icon(icon, color: color, size: 19, key: ValueKey(icon)),
+              ),
             if (label.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 5),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  label,
+                  key: ValueKey(label),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

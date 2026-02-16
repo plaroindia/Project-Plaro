@@ -11,6 +11,7 @@ import 'widgets/byte_comments.dart';
 import 'widgets/content_actions.dart';
 import 'byte_page.dart';
 import 'widgets/follow_button.dart';
+import 'byte_rating_dialogs.dart';
 
 class BytesFullScreen extends ConsumerStatefulWidget {
   final List<Byte> bytes;
@@ -237,13 +238,13 @@ class ByteVideoPlayer extends ConsumerStatefulWidget {
   ConsumerState<ByteVideoPlayer> createState() => _ByteVideoPlayerState();
 }
 
+
 class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final feedState = ref.watch(profileFeedProvider);
 
-    // Get the updated byte from the feed state
     final currentByte = feedState.bytes.firstWhere(
           (b) => b.byteId == widget.byte.byteId,
       orElse: () => widget.byte,
@@ -255,7 +256,6 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
 
     return GestureDetector(
       onHorizontalDragEnd: (details) {
-        // Swipe left to show comments
         if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
           widget.onSwipeLeft();
         }
@@ -263,7 +263,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Video player with double tap like functionality
+          // ── Video + double-tap like (fully preserved) ──────────────────────
           ByteDoubleTapLike(
             byteId: currentByte.byteId,
             isliked: currentByte.isliked ?? false,
@@ -284,175 +284,176 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                   children: [
                     CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: 16),
-                    Text(
-                      'Loading video...',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    Text('Loading video…',
+                        style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
             ),
           ),
 
-          // Play/pause overlay
-          if (widget.controller.value.isInitialized && !widget.controller.value.isPlaying)
+          // ── Play/pause overlay ─────────────────────────────────────────────
+          if (widget.controller.value.isInitialized &&
+              !widget.controller.value.isPlaying)
             IgnorePointer(
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.3), width: 1.5),
                   ),
-                  child: const Icon(
-                    Icons.play_arrow,
-                    color: Colors.white,
-                    size: 48,
-                  ),
+                  child: const Icon(Icons.play_arrow_rounded,
+                      color: Colors.white, size: 44),
                 ),
               ),
             ),
 
-          // Bottom gradient
+          // ── Deep bottom gradient ───────────────────────────────────────────
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 0, left: 0, right: 0,
             child: IgnorePointer(
               child: Container(
-                height: 200,
+                height: 280,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black54,
-                      Colors.black87,
+                      Color(0x44000000),
+                      Color(0xCC000000),
+                      Colors.black,
                     ],
+                    stops: [0.0, 0.35, 0.72, 1.0],
                   ),
                 ),
               ),
             ),
           ),
 
-          
-          // Bottom content area
+          // ── Right-side vertical action column ─────────────────────────────
           Positioned(
-            bottom: 3,
-            left: 16,
-            right: 16,
+            right: 12,
+            bottom: 100,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Like (tap shortcut — double-tap on video still works)
+                GestureDetector(
+                  onTap: widget.onLike,
+                  child: _SideActionItem(
+                    icon: currentByte.isliked == true
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_outline_rounded,
+                    iconColor: currentByte.isliked == true
+                        ? Colors.redAccent
+                        : Colors.white,
+                    label: _formatCount(currentByte.likeCount),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Star rating → insights dialog
+                ByteStarRatingIcon(byteId: currentByte.byteId),
+                const SizedBox(height: 20),
+
+                // People → ranked-by dialog
+                ByteRankedByIcon(byteId: currentByte.byteId),
+                const SizedBox(height: 20),
+
+                // Share
+                GestureDetector(
+                  onTap: widget.onShare,
+                  child: const _SideActionItem(
+                    icon: Icons.reply_rounded,
+                    iconColor: Colors.white70,
+                    label: '',
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Bottom info row ────────────────────────────────────────────────
+          Positioned(
+            bottom: 12,
+            left: 12,
+            right: 80,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Profile row with follow, like, share, more buttons
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.grey[600],
-                      backgroundImage: currentByte.profilePic != null
-                          ? CachedNetworkImageProvider(currentByte.profilePic!)
-                          : null,
-                      child: currentByte.profilePic == null
-                          ? Text(
-                        (currentByte.username?.isNotEmpty ?? false)
-                            ? currentByte.username!.substring(0, 1).toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                    // Avatar with gradient ring
+                    Container(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF0077FF), Color(0xFF00C6FF)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      )
-                          : null,
+                      ),
+                      padding: const EdgeInsets.all(2),
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.grey.shade800,
+                        backgroundImage: currentByte.profilePic != null
+                            ? CachedNetworkImageProvider(currentByte.profilePic!)
+                            : null,
+                        child: currentByte.profilePic == null
+                            ? Text(
+                          (currentByte.username?.isNotEmpty ?? false)
+                              ? currentByte.username!
+                              .substring(0, 1)
+                              .toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
+                        )
+                            : null,
+                      ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '@${currentByte.username ?? "unknown"}',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-
-                    // Follow button (if not own profile)
-                    if (authState.value?.user != null && authState.value!.user.id != currentByte.userId)
-                      FollowButton(
-                        targetUserId: currentByte.userId,
-                        compact: true,
-                      ),
-
-                    const SizedBox(width: 10),
-
-                    // Like icon with count
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          currentByte.isliked == true ? Icons.favorite : Icons.favorite_border,
-                          color: currentByte.isliked == true ? Colors.red : Colors.white,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatCount(currentByte.likeCount),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(width: 10),
-
-                    // Share button
-                    GestureDetector(
-                      onTap: widget.onShare,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.share,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 10),
-
-                    // More options button
+                    const SizedBox(width: 6),
+                    if (authState.value?.user != null &&
+                        authState.value!.user.id != currentByte.userId)
+                      FollowButton(targetUserId: currentByte.userId, compact: true),
+                    const SizedBox(width: 4),
                     if (authState.value?.user != null)
                       ContentActionMenu(
                         data: ContentActionData(
                           contentId: currentByte.byteId,
                           userId: currentByte.userId,
                           contentType: ContentType.byte,
-                          isHidden: false, // TODO: Add is_hidden field to Byte model
+                          isHidden: false,
                           shareText: currentByte.caption,
                           shareUrl: 'https://yourapp.com/byte/${currentByte.byteId}',
                         ),
                         callbacks: ContentActionCallbacks(
                           onEdit: authState.value!.user.id == currentByte.userId
-                              ? () => _handleEdit(context, ref, currentByte)
-                              : null,
+                              ? () => _handleEdit(context, ref, currentByte) : null,
                           onDelete: authState.value!.user.id == currentByte.userId
-                              ? () => _handleDelete(context, ref, currentByte)
-                              : null,
+                              ? () => _handleDelete(context, ref, currentByte) : null,
                           onToggleHide: authState.value!.user.id == currentByte.userId
-                              ? () => _handleToggleHide(context, ref, currentByte)
-                              : null,
+                              ? () => _handleToggleHide(context, ref, currentByte) : null,
                           onShare: () => _handleShare(context, currentByte),
                         ),
                         currentUserId: authState.value!.user.id,
@@ -463,77 +464,65 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                 // Caption
                 if (currentByte.caption != null && currentByte.caption!.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       currentByte.caption!,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        height: 1.3,
+                        color: Colors.white, fontSize: 13, height: 1.4,
+                        shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
                       ),
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
 
-                // Video progress indicator
+                // Progress bar
                 if (widget.controller.value.isInitialized)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: VideoProgressIndicator(
-                      widget.controller,
-                      allowScrubbing: true,
-                      colors: const VideoProgressColors(
-                        playedColor: Colors.white,
-                        bufferedColor: Colors.grey,
-                        backgroundColor: Colors.white24,
+                    padding: const EdgeInsets.only(top: 10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: VideoProgressIndicator(
+                        widget.controller,
+                        allowScrubbing: true,
+                        colors: const VideoProgressColors(
+                          playedColor: Colors.white,
+                          bufferedColor: Colors.white30,
+                          backgroundColor: Colors.white12,
+                        ),
+                        padding: EdgeInsets.zero,
                       ),
-                      padding: EdgeInsets.zero,
                     ),
                   ),
               ],
             ),
           ),
 
-          // Swipe left indicator (only show if enabled)
+          // ── Swipe-left comment hint (refined) ─────────────────────────────
           if (widget.showSwipeIndicator)
             Positioned(
-              right: 15,
-              bottom: MediaQuery.of(context).size.height / 2 - 380,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black38,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.keyboard_arrow_left,
-                          color: Colors.white70,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(Icons.chat_bubble_outline,color: Colors.white70,
-                          size: 20,),
-                      ],
+              left: 12,
+              bottom: MediaQuery.of(context).size.height * 0.42,
+              child: Opacity(
+                opacity: 0.75,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.chevron_left_rounded, color: Colors.white70, size: 18),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white70, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatCount(currentByte.commentCount),
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
-                    Row(
-                      children: [
-                        const SizedBox(width: 26),
-                        Text(
-                          '${currentByte.commentCount}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ]),
                 ),
               ),
             ),
@@ -598,6 +587,47 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
+  }
+}
+
+
+// ── Reusable right-side action column item ────────────────────────────────────
+class _SideActionItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+
+  const _SideActionItem({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.35),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+          ),
+          child: Icon(icon, color: iconColor, size: 22),
+        ),
+        if (label.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+          )),
+        ],
+      ],
+    );
   }
 }
 

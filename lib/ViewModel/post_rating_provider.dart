@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth_provider.dart';
 
 // ─────────────────────────────────────────────
 //  Models
@@ -284,20 +285,31 @@ final postRatingProvider = StateNotifierProvider.family<PostRatingNotifier,
   return notifier;
 });
 
-/// Checks if the current user is a verified professional
+/// Whether the current user is a professional or educator who can rate content.
+///
+/// IMPORTANT — cache-bust on auth change:
+/// By watching [authStateProvider] the FutureProvider re-evaluates every time
+/// the session changes (login, logout, token refresh).  Without this, Riverpod
+/// caches the result from the previous user and the Rate button shows/hides
+/// based on whoever was logged in first — hot-reload was the only fix in dev,
+/// and production users would be stuck until an app restart.
 final isVerifiedProfessionalProvider = FutureProvider<bool>((ref) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  // Watch the auth stream — any session change triggers a re-evaluation.
+  final session = ref.watch(authStateProvider).valueOrNull;
+
+  // No session → definitely not a professional.
+  final userId = session?.user.id;
   if (userId == null) return false;
+
   try {
     final row = await Supabase.instance.client
         .from('user_profiles')
-        .select('role, is_verified')
+        .select('role')
         .eq('user_id', userId)
         .maybeSingle();
     if (row == null) return false;
     final role = row['role'] as String?;
-    final isVerified = row['is_verified'] as bool? ?? false;
-    return isVerified && role == 'professional';
+    return role == 'professional' || role == 'educator';
   } catch (_) {
     return false;
   }
