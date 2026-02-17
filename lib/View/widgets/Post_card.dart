@@ -284,266 +284,266 @@ class _PostCardState extends ConsumerState<PostCard> {
               ),
             ),
           )) ;
-      }
+    }
 
-          // Original code for non-preview posts
-          final postFeedState = ref.watch(postFeedProvider);
-      final currentPost = postFeedState.posts.firstWhere(
-              (p) => p.post_id == widget.post.post_id,
-          orElse: () => widget.post
-      );
+    // Original code for non-preview posts
+    final postFeedState = ref.watch(postFeedProvider);
+    final currentPost = postFeedState.posts.firstWhere(
+            (p) => p.post_id == widget.post.post_id,
+        orElse: () => widget.post
+    );
 
-      final isLiking = postFeedState.likingPosts.contains(widget.post.post_id);
+    final isLiking = postFeedState.likingPosts.contains(widget.post.post_id);
 
-      // Show error if there's one
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (postFeedState.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(postFeedState.error!),
-              backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: 'Dismiss',
-                onPressed: () => ref.read(postFeedProvider.notifier).clearError(),
-              ),
-            ),
-          );
-        }
-      });
-
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: theme.cardTheme.color,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Header ───────────────────────────────────────
-                GestureDetector(
-                  onTap: widget.onUserInfo,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 4, 10),
-                    child: Row(
-                      children: [
-                        // Avatar with ring
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [
-                                theme.colorScheme.primary,
-                                theme.colorScheme.secondary,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(2),
-                          child: CircleAvatar(
-                            backgroundImage: currentPost.profile_pic != null
-                                ? CachedNetworkImageProvider(currentPost.profile_pic!)
-                                : const AssetImage('assets/plaro_logo.png')
-                            as ImageProvider,
-                            radius: 19,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                currentPost.username ?? 'Unknown User',
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                _formatTimeAgo(currentPost.created_at),
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.4),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Rating icons
-                        if (currentPost.post_id != null) ...[
-                          PostRankedByIcon(postId: currentPost.post_id!),
-                          PostStarRatingIcon(postId: currentPost.post_id!),
-                        ],
-                        IconButton(
-                          icon: Icon(Icons.more_horiz,
-                              color: theme.colorScheme.onSurface.withOpacity(0.4)),
-                          onPressed: () => _showMoreOptions(context, currentPost),
-                          splashRadius: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── Title ────────────────────────────────────────
-                if (currentPost.title != null && currentPost.title!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-                    child: Text(
-                      currentPost.title!,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        height: 1.3,
-                        letterSpacing: 0.1,
-                      ),
-                    ),
-                  ),
-
-                // ── Media ─────────────────────────────────────────
-                if ((currentPost.media_urls != null &&
-                    currentPost.media_urls!.isNotEmpty) ||
-                    (currentPost.localMediaFiles != null &&
-                        currentPost.localMediaFiles!.isNotEmpty))
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                    child: _buildMediaSection(
-                        currentPost.media_urls ?? [], currentPost.localMediaFiles),
-                  ),
-
-                // ── Content ──────────────────────────────────────
-                if (currentPost.content != null && currentPost.content!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-                    child: Text(
-                      currentPost.content!,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.78),
-                        fontSize: 14,
-                        height: 1.55,
-                      ),
-                      maxLines: 10,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-
-                // ── Tags ─────────────────────────────────────────
-                if (currentPost.tags != null && currentPost.tags!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 5,
-                      children: currentPost.tags!.map((tag) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: theme.colorScheme.primary.withOpacity(0.3),
-                                width: 1),
-                          ),
-                          child: Text(
-                            '#$tag',
-                            style: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-
-                // ── Action Bar ───────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                  child: Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _ActionButton(
-                          icon: currentPost.isliked
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_outline_rounded,
-                          label: '${currentPost.like_count}',
-                          color: currentPost.isliked
-                              ? Colors.redAccent
-                              : theme.colorScheme.onSurface.withOpacity(0.5),
-                          isLoading: isLiking,
-                          onPressed: isLiking
-                              ? null
-                              : () {
-                            if (currentPost.post_id != null) {
-                              ref
-                                  .read(postFeedProvider.notifier)
-                                  .toggleLike(currentPost.post_id!);
-                            }
-                          },
-                        ),
-                        _VerticalDivider(),
-                        _ActionButton(
-                          icon: Icons.mode_comment_outlined,
-                          label: '${currentPost.comment_count}',
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          onPressed: () =>
-                              _showCommentsSheet(context, currentPost.post_id!),
-                        ),
-                        _VerticalDivider(),
-                        _ActionButton(
-                          icon: Icons.reply_rounded,
-                          label: '${currentPost.share_count ?? 0}',
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          onPressed: () => _sharePost(context, currentPost),
-                        ),
-                        _VerticalDivider(),
-                        _ActionButton(
-                          icon: _isBookmarked
-                              ? Icons.bookmark_rounded
-                              : Icons.bookmark_outline_rounded,
-                          label: '',
-                          color: _isBookmarked
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface.withOpacity(0.5),
-                          onPressed: _toggleBookmark,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+    // Show error if there's one
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (postFeedState.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(postFeedState.error!),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Dismiss',
+              onPressed: () => ref.read(postFeedProvider.notifier).clearError(),
             ),
           ),
+        );
+      }
+    });
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ───────────────────────────────────────
+              GestureDetector(
+                onTap: widget.onUserInfo,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 4, 10),
+                  child: Row(
+                    children: [
+                      // Avatar with ring
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primary,
+                              theme.colorScheme.secondary,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: CircleAvatar(
+                          backgroundImage: currentPost.profile_pic != null
+                              ? CachedNetworkImageProvider(currentPost.profile_pic!)
+                              : const AssetImage('assets/plaro_logo.png')
+                          as ImageProvider,
+                          radius: 19,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentPost.username ?? 'Unknown User',
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              _formatTimeAgo(currentPost.created_at),
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface.withOpacity(0.4),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Rating icons
+                      if (currentPost.post_id != null) ...[
+                        PostRankedByIcon(postId: currentPost.post_id!),
+                        PostStarRatingIcon(postId: currentPost.post_id!),
+                      ],
+                      IconButton(
+                        icon: Icon(Icons.more_horiz,
+                            color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                        onPressed: () => _showMoreOptions(context, currentPost),
+                        splashRadius: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Title ────────────────────────────────────────
+              if (currentPost.title != null && currentPost.title!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                  child: Text(
+                    currentPost.title!,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+
+              // ── Media ─────────────────────────────────────────
+              if ((currentPost.media_urls != null &&
+                  currentPost.media_urls!.isNotEmpty) ||
+                  (currentPost.localMediaFiles != null &&
+                      currentPost.localMediaFiles!.isNotEmpty))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                  child: _buildMediaSection(
+                      currentPost.media_urls ?? [], currentPost.localMediaFiles),
+                ),
+
+              // ── Content ──────────────────────────────────────
+              if (currentPost.content != null && currentPost.content!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                  child: Text(
+                    currentPost.content!,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withOpacity(0.78),
+                      fontSize: 14,
+                      height: 1.55,
+                    ),
+                    maxLines: 10,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+              // ── Tags ─────────────────────────────────────────
+              if (currentPost.tags != null && currentPost.tags!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 5,
+                    children: currentPost.tags!.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: theme.colorScheme.primary.withOpacity(0.3),
+                              width: 1),
+                        ),
+                        child: Text(
+                          '#$tag',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+              // ── Action Bar ───────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurface.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _ActionButton(
+                        icon: currentPost.isliked
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_outline_rounded,
+                        label: '${currentPost.like_count}',
+                        color: currentPost.isliked
+                            ? Colors.redAccent
+                            : theme.colorScheme.onSurface.withOpacity(0.5),
+                        isLoading: isLiking,
+                        onPressed: isLiking
+                            ? null
+                            : () {
+                          if (currentPost.post_id != null) {
+                            ref
+                                .read(postFeedProvider.notifier)
+                                .toggleLike(currentPost.post_id!);
+                          }
+                        },
+                      ),
+                      _VerticalDivider(),
+                      _ActionButton(
+                        icon: Icons.mode_comment_outlined,
+                        label: '${currentPost.comment_count}',
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        onPressed: () =>
+                            _showCommentsSheet(context, currentPost.post_id!),
+                      ),
+                      _VerticalDivider(),
+                      _ActionButton(
+                        icon: Icons.reply_rounded,
+                        label: '${currentPost.share_count ?? 0}',
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        onPressed: () => _sharePost(context, currentPost),
+                      ),
+                      _VerticalDivider(),
+                      _ActionButton(
+                        icon: _isBookmarked
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_outline_rounded,
+                        label: '',
+                        color: _isBookmarked
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface.withOpacity(0.5),
+                        onPressed: _toggleBookmark,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
   // Media Section Builder
   Widget _buildMediaSection(List<String> mediaUrls, List<XFile>? localFiles) {
@@ -696,22 +696,31 @@ class _PostCardState extends ConsumerState<PostCard> {
                         child: ZoomableImage(
                           minScale: 1.0,
                           maxScale: 4.0,
-                          child: Image.network(
-                            mediaUrl,
+                          child: CachedNetworkImage(
+                            imageUrl: mediaUrl,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: theme.cardTheme.color,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.image_not_supported,
-                                    color: theme.dividerColor,
-                                    size: 50,
-                                  ),
+                            height: double.infinity,
+                            memCacheWidth: 800,
+                            maxWidthDiskCache: 1000,
+                            placeholder: (context, url) => Container(
+                              color: theme.cardTheme.color,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: theme.colorScheme.primary,
                                 ),
-                              );
-                            },
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: theme.cardTheme.color,
+                              child: Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  color: theme.dividerColor,
+                                  size: 50,
+                                ),
+                              ),
+                            ),
                           ),
                         ),),
                     ),

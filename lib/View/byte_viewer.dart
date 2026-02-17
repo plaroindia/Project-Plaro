@@ -467,7 +467,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
           Positioned(
             bottom: 12,
             left: 12,
-            right: 80,
+            right: 12,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -516,7 +516,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                     if (authState.value?.user != null &&
                         authState.value!.user.id != currentByte.userId)
                       FollowButton(targetUserId: currentByte.userId, compact: true),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 10),
                     GestureDetector(
                       onTap: () => _showMoreOptions(context, currentByte),
                       child: Container(
@@ -526,7 +526,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
                         ),
-                        child: const Icon(Icons.more_horiz, color: Colors.white, size: 18),
+                        child: const Icon(Icons.more_horiz, color: Colors.white, size: 30),
                       ),
                     ),
                   ],
