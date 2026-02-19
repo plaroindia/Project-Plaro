@@ -266,7 +266,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     Navigator.pushNamed(context, '/chat_list');
                   },
                   icon: Icon(
-                    Icons.message,
+                    Icons.forum,
                     color: Theme.of(context).appBarTheme.iconTheme?.color,
                   ),
                 ),
@@ -348,7 +348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 ? NetworkImage(profile!.profilePic!)
                                 : const AssetImage('assets/plaro_logo.png')
                             as ImageProvider,
-                            radius: 40.0,
+                            radius: 60.0,
                           ),
                           loading: () => const CircleAvatar(
                             radius: 40.0,
@@ -422,50 +422,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
 
-            ListTile(
-              leading: Icon(
-                Icons.event_note,
-                color: Theme.of(context).iconTheme.color,
-              ),
-              title: Text(
-                'Events',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onBackground,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AllEventsPage()
-                  ),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: Icon(
-                Icons.event_note,
-                color: Theme.of(context).iconTheme.color,
-              ),
-              title: Text(
-                'Taikens',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onBackground,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const TaikensListPage()
-                  ),
-                );
-              },
-            ),
-
+            // ListTile(
+            //   leading: Icon(
+            //     Icons.event_note,
+            //     color: Theme.of(context).iconTheme.color,
+            //   ),
+            //   title: Text(
+            //     'Events',
+            //     style: TextStyle(
+            //       color: Theme.of(context).colorScheme.onBackground,
+            //     ),
+            //   ),
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //           builder: (context) => const AllEventsPage()
+            //       ),
+            //     );
+            //   },
+            // ),
 
             ListTile(
               leading: Icon(

@@ -10,6 +10,7 @@ import '../ViewModel/follow_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'byte_page.dart';
 import 'byte_viewer.dart';
+import 'taiken_list_page.dart';
 
 
 void main() => runApp(MaterialApp(home: navCard()));
@@ -38,11 +39,11 @@ class _navCardState extends ConsumerState<navCard> {
       case 0:
         return HomeScreen();
       case 1:
-        return Container(); // Placeholder for create (won't be used due to modal)
-      case 2:
         return ByteViewerPage();
+      case 2:
+        return TaikensListPage();
       case 3:
-        return NotificationsScreen();
+        return Container();
       case 4:
         return _buildProfileScreen();
       default:
@@ -106,12 +107,12 @@ class _navCardState extends ConsumerState<navCard> {
   }
 
   void _onItemTapped(int index) {
-    if (index == 1) {
+    if (index == 3) {
       // Show create modal instead of navigating
       _showCreateModal();
     } else {
       // Clear profile-related state when navigating to profile tab
-      if (index == 3) {
+      if (index == 4) {
         _clearProfileState();
       }
 
@@ -158,15 +159,9 @@ class _navCardState extends ConsumerState<navCard> {
         onTap: _onItemTapped,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: 'Bytes'),
+          BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'Taiken'),
           BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Create'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline),
-            label: 'Bytes',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
@@ -192,9 +187,7 @@ class _CreateModalSheetState extends State<CreateModalSheet> {
   }
 
   void _navigateToPage(int index) {
-    // Close modal first
     Navigator.pop(context);
-    // Handle navigation based on selection
     switch (index) {
       case 0: // Post
         Navigator.push(
@@ -368,132 +361,11 @@ class _CreateModalSheetState extends State<CreateModalSheet> {
       case 0: // Post
         return Icons.add_box_outlined;
       case 1: // Byte
-        return Icons.video_library_outlined;
+        return Icons.play_circle_outline;
       case 2: // Taiken
-        return Icons.school_outlined;
+        return Icons.gamepad;
       default:
         return Icons.add;
     }
-  }
-}
-
-// NotificationsScreen remains the same
-class NotificationsScreen extends StatefulWidget {
-  @override
-  State<NotificationsScreen> createState() => _NotificationsScreen();
-}
-
-class _NotificationsScreen extends State<NotificationsScreen> {
-  Widget Noti_card(noticard) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade900.withOpacity(0.7),
-            blurRadius: 5.0,
-            spreadRadius: 2.0,
-            offset: const Offset(0.0, 1.0),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundImage: AssetImage('assets/plaro_logo.png'),
-                radius: 15.0,
-              ),
-              const SizedBox(width: 13.0),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "User",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontSize: 20.0,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                  const SizedBox(height: 3.0),
-                  Text(
-                    "Note",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 15.0,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(width: 30.0),
-          Text(
-            "Time",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13.0,
-              letterSpacing: 2.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ListView(
-        scrollDirection: Axis.vertical,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10.0, 5.0, 10.0, 0.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 400,
-                  height: 53,
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.shade900.withOpacity(0.7),
-                        blurRadius: 5.0,
-                        spreadRadius: 2.0,
-                        offset: const Offset(0.0, 1.0),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Text(
-                          "baan_kai_",
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 20.0,
-                            letterSpacing: 2.0,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
