@@ -7,6 +7,8 @@ import 'dart:io';
 import '../Model/byte.dart';
 import '../Model/comment.dart';
 import 'plaro_points_service.dart';
+import 'streak_provider.dart';
+
 
 // Byte create state
 class ByteCreateState {
@@ -108,11 +110,12 @@ class BytesFeedState {
 
 // Byte create provider
 class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
-  ByteCreateNotifier(this._pointsService) : super(ByteCreateState());
+  ByteCreateNotifier(this._pointsService, this._ref) : super(ByteCreateState());
 
   final SupabaseClient _supabase = Supabase.instance.client;
   final ImagePicker _picker = ImagePicker();
   final PlaroPointsService _pointsService;
+  final Ref _ref;
 
   void updateCaption(String caption) {
     state = state.copyWith(caption: caption);
@@ -258,7 +261,10 @@ class ByteCreateNotifier extends StateNotifier<ByteCreateState> {
         debugPrint('Points stack trace: $pointsStack');
         // Don't fail the whole operation if points fail
       }
-
+      _ref.read(streakProvider.notifier).logByteCreated(
+        byteId: (byteId as num).toInt(),
+        domain: state.domain,
+      );
       state = ByteCreateState();
       return true;
 
@@ -1118,9 +1124,10 @@ class BytesFeedNotifier extends StateNotifier<BytesFeedState> {
   }
 }
 
-final byteCreateProvider = StateNotifierProvider<ByteCreateNotifier, ByteCreateState>((ref) {
+final byteCreateProvider =
+StateNotifierProvider<ByteCreateNotifier, ByteCreateState>((ref) {
   final pointsService = ref.read(plaroPointsServiceProvider);
-  return ByteCreateNotifier(pointsService);
+  return ByteCreateNotifier(pointsService, ref);
 });
 
 final bytesFeedProvider = StateNotifierProvider<BytesFeedNotifier, BytesFeedState>(

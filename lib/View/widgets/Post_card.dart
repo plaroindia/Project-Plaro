@@ -47,9 +47,15 @@ class __LocalVideoPlayerState extends State<_LocalVideoPlayer> {
     if (!_isInitialized) {
       return Center(child: CircularProgressIndicator());
     }
-    return AspectRatio(
-      aspectRatio: _controller.value.aspectRatio,
-      child: VideoPlayer(_controller),
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: _controller.value.size.width,
+          height: _controller.value.size.height,
+          child: VideoPlayer(_controller),
+        ),
+      ),
     );
   }
 }
@@ -1135,9 +1141,16 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> with AutomaticKee
       child: Stack(
         alignment: Alignment.center,
         children: [
-          AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
+          // Use SizedBox.expand with FittedBox to fill container like Instagram
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller.value.size.width,
+                height: _controller.value.size.height,
+                child: VideoPlayer(_controller),
+              ),
+            ),
           ),
 
           // Play/Pause overlay

@@ -9,6 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../ViewModel/auth_provider.dart';
 import '../ViewModel/setProfileProvider.dart';
 import '../constants/domain_constants.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:path_provider/path_provider.dart';
 
 class PostCreateScreen extends ConsumerStatefulWidget {
   @override
@@ -98,6 +100,11 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
         ),
       );
     }
+  }
+
+  bool _isVideoFile(String path) {
+    final videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+    return videoExtensions.any((ext) => path.toLowerCase().endsWith(ext));
   }
 
   void _showMediaPicker() {
@@ -376,11 +383,77 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: Image.file(
+                                  child: _isVideoFile(media.path)
+                                      ? Stack(
+                                    children: [
+                                      // Video background
+                                      Container(
+                                        width: 120,
+                                        height: 120,
+                                        color: Colors.grey[850],
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.videocam,
+                                            size: 40,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                      // Video indicator badge
+                                      Positioned(
+                                        bottom: 4,
+                                        left: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.7),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.play_arrow,
+                                                size: 12,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(width: 2),
+                                              Text(
+                                                'VIDEO',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                      : Image.file(
                                     File(media.path),
                                     width: 120,
                                     height: 120,
                                     fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        width: 120,
+                                        height: 120,
+                                        color: Colors.grey[850],
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.broken_image,
+                                            size: 40,
+                                            color: Colors.white54,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                                 Positioned(

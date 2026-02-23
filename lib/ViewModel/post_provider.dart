@@ -1,10 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'dart:typed_data';
 import '../Model/post.dart';
 import 'plaro_points_service.dart';
+import 'streak_provider.dart'; // ✅ NEW
 
 // State class for post creation
 class PostCreateState {
@@ -57,11 +57,12 @@ class PostCreateState {
 
 // Post Creation Provider
 class PostCreateNotifier extends StateNotifier<PostCreateState> {
-  PostCreateNotifier(this._pointsService) : super(PostCreateState());
+  PostCreateNotifier(this._pointsService, this._ref) : super(PostCreateState()); // ✅ UPDATED
 
   final SupabaseClient _supabase = Supabase.instance.client;
   final ImagePicker _imagePicker = ImagePicker();
-  final PlaroPointsService _pointsService; // ✅ ADDED
+  final PlaroPointsService _pointsService;
+  final Ref _ref; // ✅ NEW — needed to call streak provider
 
   Future<void> pickMedia({bool fromCamera = false}) async {
     try {
@@ -109,55 +110,30 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
     state = state.copyWith(selectedMedia: updatedMedia);
   }
 
-  void updateContent(String content) {
-    state = state.copyWith(content: content);
-  }
-
-  void updateTitle(String title) {
-    state = state.copyWith(title: title);
-  }
-
-  void updateCaption(String caption) {
-    state = state.copyWith(caption: caption);
-  }
-
-  void updateTags(List<String> tags) {
-    state = state.copyWith(tags: tags);
-  }
-
-  void updateDomain(String domain) {
-    state = state.copyWith(domain: domain);
-  }
+  void updateContent(String content) => state = state.copyWith(content: content);
+  void updateTitle(String title)     => state = state.copyWith(title: title);
+  void updateCaption(String caption) => state = state.copyWith(caption: caption);
+  void updateTags(List<String> tags) => state = state.copyWith(tags: tags);
+  void updateDomain(String domain)   => state = state.copyWith(domain: domain);
 
   Future<String?> _uploadFile(XFile file) async {
     try {
       final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
+      if (currentUserId == null) throw Exception('User not authenticated');
 
       final bytes = await file.readAsBytes();
       final fileExtension = file.path.split('.').last.toLowerCase();
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${currentUserId.substring(0, 8)}.$fileExtension';
-
-      // Create user-specific folder structure
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${currentUserId.substring(0, 8)}.$fileExtension';
       final filePath = '$currentUserId/$fileName';
 
-      // Upload with proper headers
-      await _supabase.storage
-          .from('post-media')
-          .uploadBinary(
+      await _supabase.storage.from('post-media').uploadBinary(
         filePath,
         bytes,
-        fileOptions: FileOptions(
-          cacheControl: '3600',
-          upsert: false,
-        ),
+        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
       );
 
-      return _supabase.storage
-          .from('post-media')
-          .getPublicUrl(filePath);
+      return _supabase.storage.from('post-media').getPublicUrl(filePath);
     } catch (e) {
       print('Upload error: $e');
       throw Exception('Failed to upload file: $e');
@@ -166,20 +142,23 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
 
   Future<bool> createPost() async {
     final currentUserId = _supabase.auth.currentUser?.id;
+    //
+    debugPrint('[PostProvider] currentUser=${_supabase.auth.currentUser?.id}');
+    debugPrint('[PostProvider] streakNotifier userId=${_ref.read(streakProvider.notifier).debugUserId}');
+
     if (currentUserId == null) {
       state = state.copyWith(error: 'User not authenticated');
       return false;
     }
 
-    // DOMAIN VALIDATION
     if (state.domain == null || state.domain!.isEmpty) {
       state = state.copyWith(error: 'Please select a domain');
       return false;
     }
 
-    // TAGS VALIDATION
     if (state.tags.isEmpty) {
-      state = state.copyWith(error: 'Please add at least one tag to help categorize your content');
+      state = state.copyWith(
+          error: 'Please add at least one tag to help categorize your content');
       return false;
     }
 
@@ -191,30 +170,24 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Upload media files
       List<String> mediaUrls = [];
       for (int i = 0; i < state.selectedMedia.length; i++) {
         try {
-          final file = state.selectedMedia[i];
-          final url = await _uploadFile(file);
-          if (url != null) {
-            mediaUrls.add(url);
-          }
+          final url = await _uploadFile(state.selectedMedia[i]);
+          if (url != null) mediaUrls.add(url);
         } catch (uploadError) {
           print('Failed to upload file ${i + 1}: $uploadError');
           state = state.copyWith(
-            error: 'Failed to upload some media files. Please try again.',
-          );
+              error: 'Failed to upload some media files. Please try again.');
           return false;
         }
       }
 
-      // Create post in database
       final postData = {
         'user_id': currentUserId,
         'title': state.title.isEmpty ? null : state.title,
         'content': state.content.isEmpty ? null : state.content,
-        'tags': state.tags,  // Now mandatory, no need for isEmpty check
+        'tags': state.tags,
         'domain': state.domain,
         'is_published': true,
         'media_urls': mediaUrls.isEmpty ? null : mediaUrls,
@@ -227,8 +200,9 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
           .select('post_id')
           .single();
 
-      // ✅ ADDED: Award points for creating post
-      final postId = response['post_id'];
+      final postId = response['post_id'] as int;
+
+      // ── Award Plaro content points ─────────────────────────────────────────
       try {
         await _pointsService.awardPointsForContent(
           userId: currentUserId,
@@ -237,8 +211,15 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
         );
       } catch (pointsError) {
         print('Failed to award points: $pointsError');
-        // Don't fail the whole operation if points fail
       }
+
+      // ── Log streak event ───────────────────────────────────────────────────
+      // Fire-and-forget: runs in background so it never delays the success UX.
+      // The notifier handles its own error catching.
+      _ref.read(streakProvider.notifier).logPostCreated(
+        postId: postId,
+        domain: state.domain,
+      );
 
       state = state.copyWith(
         isLoading: false,
@@ -257,30 +238,24 @@ class PostCreateNotifier extends StateNotifier<PostCreateState> {
       String errorMessage = 'Failed to create post';
 
       if (e.toString().contains('StorageException')) {
-        errorMessage = 'Failed to upload media. Please check your permissions and try again.';
+        errorMessage =
+        'Failed to upload media. Please check your permissions and try again.';
       } else if (e.toString().contains('row-level security')) {
         errorMessage = 'Permission denied. Please contact support.';
       }
 
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      state = state.copyWith(isLoading: false, error: errorMessage);
       return false;
     }
   }
 
-  void clearError() {
-    state = state.copyWith(error: null);
-  }
-
-  void clearSuccess() {
-    state = state.copyWith(successMessage: null);
-  }
+  void clearError()   => state = state.copyWith(error: null);
+  void clearSuccess() => state = state.copyWith(successMessage: null);
 }
 
-// ✅ UPDATED: Provider now includes PlaroPointsService from Riverpod
-final postCreateProvider = StateNotifierProvider<PostCreateNotifier, PostCreateState>((ref) {
+// ✅ UPDATED: passes Ref so the notifier can call streakProvider
+final postCreateProvider =
+StateNotifierProvider<PostCreateNotifier, PostCreateState>((ref) {
   final pointsService = ref.read(plaroPointsServiceProvider);
-  return PostCreateNotifier(pointsService);
+  return PostCreateNotifier(pointsService, ref);
 });

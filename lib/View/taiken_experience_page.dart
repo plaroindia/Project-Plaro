@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 import '../ViewModel/taiken_experience_provider.dart';
+import '../ViewModel/streak_provider.dart'; // ✅ NEW
 import '../Model/taiken.dart';
+import 'widgets/streak_widgets.dart'; // ✅ NEW — StreakBadge, MilestoneToastListener
 
 class TaikenExperiencePage extends ConsumerStatefulWidget {
   final String taikenId;
@@ -13,7 +15,8 @@ class TaikenExperiencePage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TaikenExperiencePage> createState() => _TaikenExperiencePageState();
+  ConsumerState<TaikenExperiencePage> createState() =>
+      _TaikenExperiencePageState();
 }
 
 class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
@@ -69,9 +72,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     _currentXP = newXP;
     _xpAnimationController.forward(from: 0.0);
   }
-void _showNextDialogue(int totalDialogues) {
-    if (_isAdvancingDialogue) return;  // Prevent concurrent execution
-    
+
+  void _showNextDialogue(int totalDialogues) {
+    if (_isAdvancingDialogue) return;
+
     if (_visibleDialoguesCount < totalDialogues) {
       setState(() {
         _isAdvancingDialogue = true;
@@ -86,21 +90,15 @@ void _showNextDialogue(int totalDialogues) {
             curve: Curves.easeOut,
           );
         }
-        
-        // Reset guard after animation starts
         if (mounted) {
-          setState(() {
-            _isAdvancingDialogue = false;
-          });
+          setState(() => _isAdvancingDialogue = false);
         }
       });
     }
   }
 
-  // Add this method to handle complete reset
   Future<void> _handleTryAgain() async {
     try {
-      // Show loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Resetting taiken...'),
@@ -108,11 +106,10 @@ void _showNextDialogue(int totalDialogues) {
         ),
       );
 
-      // Reset provider state (deletes DB, creates fresh progress)
-      await ref.read(taikenExperienceProvider(widget.taikenId).notifier)
+      await ref
+          .read(taikenExperienceProvider(widget.taikenId).notifier)
           .resetAndRestart();
-      
-      // Reset all local UI state
+
       if (mounted) {
         setState(() {
           _currentXP = 100.0;
@@ -121,19 +118,17 @@ void _showNextDialogue(int totalDialogues) {
           _visibleDialoguesCount = 0;
           _isAdvancingDialogue = false;
         });
-        
-        // Reset scroll controller
+
         if (_dialogueScrollController.hasClients) {
           _dialogueScrollController.jumpTo(0);
         }
-        
-        // Reset XP animation
+
         _xpAnimationController.reset();
         _xpAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(
-          CurvedAnimation(parent: _xpAnimationController, curve: Curves.easeInOut),
+          CurvedAnimation(
+              parent: _xpAnimationController, curve: Curves.easeInOut),
         );
       }
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -146,10 +141,18 @@ void _showNextDialogue(int totalDialogues) {
     }
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(taikenExperienceProvider(widget.taikenId));
 
+    // ✅ MilestoneToastListener catches newMilestoneProvider changes anywhere
+    // in this subtree and shows the 🏆 SnackBar automatically.
+    return MilestoneToastListener(child: _buildContent(state));
+  }
+
+  Widget _buildContent(TaikenExperienceState state) {
     if (state.isLoading) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -197,16 +200,12 @@ void _showNextDialogue(int totalDialogues) {
       );
     }
 
-    if (state.showingIntro) {
-      return _buildIntroScreen(state);
-    }
-
-    if (state.showingOutro) {
-      return _buildOutroScreen(state);
-    }
-
+    if (state.showingIntro) return _buildIntroScreen(state);
+    if (state.showingOutro) return _buildOutroScreen(state);
     return _buildExperienceScreen(state);
   }
+
+  // ── Intro (unchanged + streak hint) ─────────────────────────────────────────
 
   Widget _buildIntroScreen(TaikenExperienceState state) {
     return Scaffold(
@@ -253,25 +252,53 @@ void _showNextDialogue(int totalDialogues) {
                 child: Text(
                   state.taiken!.introScript,
                   style: TextStyle(
-                    color: Colors.grey[300],
-                    fontSize: 16,
-                    height: 1.5,
-                  ),
+                      color: Colors.grey[300], fontSize: 16, height: 1.5),
                   textAlign: TextAlign.center,
                 ),
               ),
               const SizedBox(height: 24),
-              _buildInfoRow(Icons.layers, '${state.taiken!.totalStages} Stages'),
+              _buildInfoRow(
+                  Icons.layers, '${state.taiken!.totalStages} Stages'),
               const SizedBox(height: 8),
-              _buildInfoRow(Icons.quiz, '${state.taiken!.totalQuestions} Questions'),
+              _buildInfoRow(
+                  Icons.quiz, '${state.taiken!.totalQuestions} Questions'),
               const SizedBox(height: 8),
-              _buildInfoRow(Icons.check_circle, 'Pass: ${state.taiken!.passThreshold}% correct'),
+              _buildInfoRow(Icons.check_circle,
+                  'Pass: ${state.taiken!.passThreshold}% correct'),
+
+              // ✅ Streak hint
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B35).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFFFF6B35).withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const StreakBadge(size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Completing each stage extends your streak!',
+                      style: TextStyle(color: Colors.grey[300], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    ref.read(taikenExperienceProvider(widget.taikenId).notifier)
+                    ref
+                        .read(taikenExperienceProvider(widget.taikenId)
+                        .notifier)
                         .startExperience();
                   },
                   style: ElevatedButton.styleFrom(
@@ -279,8 +306,7 @@ void _showNextDialogue(int totalDialogues) {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
                     'Start Experience',
@@ -301,133 +327,180 @@ void _showNextDialogue(int totalDialogues) {
       children: [
         Icon(icon, color: Colors.blue, size: 20),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
-          ),
-        ),
+        Text(text,
+            style: const TextStyle(color: Colors.white70, fontSize: 14)),
       ],
     );
   }
 
-  Widget _buildOutroScreen(TaikenExperienceState state) {
-  final isPassed = state.progress!.status == 'completed';
-  final accuracy = state.progress!.accuracyPercentage;
+  // ── Outro (unchanged + streak result card + Plaro points row) ────────────────
 
-  return Scaffold(
-    backgroundColor: Colors.black,
-    body: SafeArea(
-      child: SingleChildScrollView(  // ADDED: Make entire content scrollable
-        padding: const EdgeInsets.all(24),  // Moved padding here
-        child: Column(  // REMOVED mainAxisAlignment: MainAxisAlignment.center
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 40),  // Top spacing
-            Icon(
-              isPassed ? Icons.check_circle : Icons.cancel,
-              size: 100,
-              color: isPassed ? Colors.green : Colors.red,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              isPassed ? 'Congratulations!' : 'Taiken Failed',
-              style: TextStyle(
+  Widget _buildOutroScreen(TaikenExperienceState state) {
+    final isPassed = state.progress!.status == 'completed';
+    final accuracy = state.progress!.accuracyPercentage;
+
+    // ✅ Read live streak state — updated ~300 ms after stage completion fires
+    final currentStreak = ref.watch(currentStreakProvider);
+    final isStreakActive = ref.watch(isStreakActiveTodayProvider);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Icon(
+                isPassed ? Icons.check_circle : Icons.cancel,
+                size: 100,
                 color: isPassed ? Colors.green : Colors.red,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                isPassed
-                    ? state.taiken!.outroSuccessScript
-                    : state.taiken!.outroFailureScript,
+              const SizedBox(height: 24),
+              Text(
+                isPassed ? 'Congratulations!' : 'Taiken Failed',
                 style: TextStyle(
-                  color: Colors.grey[300],
-                  fontSize: 16,
-                  height: 1.5,
+                  color: isPassed ? Colors.green : Colors.red,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 32),
-            _buildResultStat('Accuracy', '${accuracy.toStringAsFixed(1)}%',
-                isPassed ? Colors.green : Colors.red),
-            const SizedBox(height: 12),
-            _buildResultStat('Correct Answers',
-                '${state.progress!.correctAnswers}/${state.progress!.questionsAnswered}',
-                Colors.blue),
-            const SizedBox(height: 12),
-            _buildResultStat('Final XP', '${_currentXP.toStringAsFixed(0)}%',
-                _currentXP > 50 ? Colors.green : Colors.orange),
-            const SizedBox(height: 32),
-            Text(
-              'Rate this Taiken',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildRatingStars(state),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Back to Taikens',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                child: Text(
+                  isPassed
+                      ? state.taiken!.outroSuccessScript
+                      : state.taiken!.outroFailureScript,
+                  style: TextStyle(
+                      color: Colors.grey[300], fontSize: 16, height: 1.5),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-            if (!isPassed) ...[
+              const SizedBox(height: 32),
+              _buildResultStat('Accuracy', '${accuracy.toStringAsFixed(1)}%',
+                  isPassed ? Colors.green : Colors.red),
               const SizedBox(height: 12),
+              _buildResultStat(
+                  'Correct Answers',
+                  '${state.progress!.correctAnswers}/${state.progress!.questionsAnswered}',
+                  Colors.blue),
+              const SizedBox(height: 12),
+              _buildResultStat('Final XP', '${_currentXP.toStringAsFixed(0)}%',
+                  _currentXP > 50 ? Colors.green : Colors.orange),
+
+              // ✅ Streak result
+              const SizedBox(height: 12),
+              _buildStreakResultCard(
+                isPassed: isPassed,
+                currentStreak: currentStreak,
+                isStreakActive: isStreakActive,
+              ),
+
+              // ✅ Plaro points earned (only on pass)
+              if (isPassed) ...[
+                const SizedBox(height: 12),
+                _buildResultStat('Plaro Points', '+5 pts', Colors.amber),
+              ],
+
+              const SizedBox(height: 32),
+              Text(
+                'Rate this Taiken',
+                style: TextStyle(color: Colors.grey[400], fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              _buildRatingStars(state),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _handleTryAgain,  // Use the new handler
-                  style: OutlinedButton.styleFrom(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Colors.white),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
-                    'Try Again',
+                    'Back to Taikens',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
+              if (!isPassed) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _handleTryAgain,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: Colors.white),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text(
+                      'Try Again',
+                      style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 40),
             ],
-            const SizedBox(height: 40),  // Bottom spacing
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+  // ✅ NEW — streak summary on the results screen
+  Widget _buildStreakResultCard({
+    required bool isPassed,
+    required int currentStreak,
+    required bool isStreakActive,
+  }) {
+    const orange = Color(0xFFFF6B35);
+    final color = isStreakActive ? orange : Colors.grey.shade700;
+    final label = isStreakActive
+        ? '$currentStreak day streak 🔥'
+        : 'Complete a stage to start your streak';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.local_fire_department_rounded, color: color, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isStreakActive ? Colors.white : Colors.grey[500],
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildResultStat(String label, String value, Color color) {
     return Container(
@@ -440,84 +513,69 @@ void _showNextDialogue(int totalDialogues) {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(label,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500)),
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
   Widget _buildRatingStars(TaikenExperienceState state) {
-  // Get initial rating from provider state
-  final existingRating = state.userRating ?? 0;
-  
-  return StatefulBuilder(
-    builder: (context, setLocalState) {
-      // Initialize from existing rating
-      int selectedRating = existingRating;
-      bool isSubmitted = existingRating > 0;  // If already rated, mark as submitted
+    final existingRating = state.userRating ?? 0;
 
-      return Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              final starIndex = index + 1;
-              final isFilled = starIndex <= selectedRating;
-              
-              return IconButton(
-                icon: Icon(
-                  isFilled ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 32,
-                ),
-                onPressed: isSubmitted ? null : () async {
-                  // Update local state immediately for instant feedback
-                  setLocalState(() {
-                    selectedRating = starIndex;
-                  });
-                  
-                  // Submit to database
-                  await ref
-                      .read(taikenExperienceProvider(widget.taikenId).notifier)
-                      .rateTaiken(starIndex, null);
-                  
-                  // Mark as submitted after successful save
-                  setLocalState(() {
-                    isSubmitted = true;
-                  });
-                },
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          if (isSubmitted)
-            Text(
-              'Thank you for rating!',
-              style: TextStyle(
-                color: Colors.green[400],
-                fontSize: 14,
-              ),
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        int selectedRating = existingRating;
+        bool isSubmitted = existingRating > 0;
+
+        return Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                final starIndex = index + 1;
+                final isFilled = starIndex <= selectedRating;
+
+                return IconButton(
+                  icon: Icon(
+                    isFilled ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                    size: 32,
+                  ),
+                  onPressed: isSubmitted
+                      ? null
+                      : () async {
+                    setLocalState(() => selectedRating = starIndex);
+                    await ref
+                        .read(taikenExperienceProvider(widget.taikenId)
+                        .notifier)
+                        .rateTaiken(starIndex, null);
+                    setLocalState(() => isSubmitted = true);
+                  },
+                );
+              }),
             ),
-        ],
-      );
-    },
-  );
-}
+            const SizedBox(height: 8),
+            if (isSubmitted)
+              Text(
+                'Thank you for rating!',
+                style: TextStyle(color: Colors.green[400], fontSize: 14),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ── Experience screen (unchanged + StreakBadge in AppBar) ────────────────────
 
   Widget _buildExperienceScreen(TaikenExperienceState state) {
     final hasDialogues = state.currentDialogues.isNotEmpty;
@@ -542,11 +600,28 @@ void _showNextDialogue(int totalDialogues) {
           ),
         ),
         actions: [
+          // ✅ Live streak badge
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Center(
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const StreakBadge(size: 15),
+              ),
+            ),
+          ),
+          // XP pill (unchanged)
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -586,23 +661,20 @@ void _showNextDialogue(int totalDialogues) {
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[900],
-                    ),
+                    errorBuilder: (context, error, stackTrace) =>
+                        Container(color: Colors.grey[900]),
                   ),
                   BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      color: Colors.black.withOpacity(0.5),
-                    ),
+                    child:
+                    Container(color: Colors.black.withOpacity(0.5)),
                   ),
                 ],
               ),
             )
           else
             Positioned.fill(
-              child: Container(color: Colors.grey[900]),
-            ),
+                child: Container(color: Colors.grey[900])),
 
           // Main image (non-blurred center)
           if (state.currentStage?.sceneImageUrl != null)
@@ -611,12 +683,13 @@ void _showNextDialogue(int totalDialogues) {
                 child: Image.network(
                   state.currentStage!.sceneImageUrl!,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                  errorBuilder: (context, error, stackTrace) =>
+                  const SizedBox(),
                 ),
               ),
             ),
 
-          // Gradient overlay for better readability
+          // Gradient overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -658,6 +731,8 @@ void _showNextDialogue(int totalDialogues) {
       ),
     );
   }
+
+  // ── XP bar (unchanged) ───────────────────────────────────────────────────────
 
   Widget _buildXPBar(TaikenExperienceState state) {
     return AnimatedBuilder(
@@ -743,6 +818,8 @@ void _showNextDialogue(int totalDialogues) {
     );
   }
 
+  // ── Progress bar (unchanged) ─────────────────────────────────────────────────
+
   Widget _buildProgressBar(TaikenExperienceState state) {
     final totalQuestions = state.taiken!.totalQuestions;
     final answered = state.progress!.questionsAnswered;
@@ -762,16 +839,14 @@ void _showNextDialogue(int totalDialogues) {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Progress: ${answered}/${totalQuestions}',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
+                'Progress: $answered/$totalQuestions',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
               Text(
                 'Accuracy: ${state.progress!.accuracyPercentage.toStringAsFixed(1)}%',
                 style: TextStyle(
-                  color: state.progress!.accuracyPercentage >= state.taiken!.passThreshold
+                  color: state.progress!.accuracyPercentage >=
+                      state.taiken!.passThreshold
                       ? Colors.green
                       : Colors.orange,
                   fontSize: 12,
@@ -799,247 +874,244 @@ void _showNextDialogue(int totalDialogues) {
     );
   }
 
-   Widget _buildDialogueSection(TaikenExperienceState state) {
-  final dialogues = state.currentDialogues;
+  // ── Dialogue section (unchanged) ─────────────────────────────────────────────
 
-  // Only initialize once when entering dialogue section
-  if (_visibleDialoguesCount == 0 && dialogues.isNotEmpty) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _visibleDialoguesCount == 0) {
-        setState(() {
-          _visibleDialoguesCount = 1;
-        });
-      }
-    });
-  }
+  Widget _buildDialogueSection(TaikenExperienceState state) {
+    final dialogues = state.currentDialogues;
 
-  return GestureDetector(
-    onTap: _isAdvancingDialogue ? null : () => _showNextDialogue(dialogues.length),
-    behavior: HitTestBehavior.translucent,
-    child: Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _dialogueScrollController,
+    if (_visibleDialoguesCount == 0 && dialogues.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _visibleDialoguesCount == 0) {
+          setState(() => _visibleDialoguesCount = 1);
+        }
+      });
+    }
+
+    return GestureDetector(
+      onTap: _isAdvancingDialogue
+          ? null
+          : () => _showNextDialogue(dialogues.length),
+      behavior: HitTestBehavior.translucent,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _dialogueScrollController,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  ...List.generate(
+                    _visibleDialoguesCount.clamp(0, dialogues.length),
+                        (index) {
+                      if (index >= dialogues.length) return const SizedBox();
+                      final dialogue = dialogues[index];
+                      final character = state.characters.firstWhere(
+                            (c) => c.characterId == dialogue.characterId,
+                        orElse: () => TaikenCharacter(
+                          characterId: '',
+                          taikenId: '',
+                          characterName: 'Narrator',
+                          displayOrder: -1,
+                          createdAt: DateTime.now(),
+                        ),
+                      );
+                      return _buildAnimatedDialogueCard(
+                          dialogue, character, index);
+                    },
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ),
+          Container(
             padding: const EdgeInsets.all(16),
+            decoration:
+            BoxDecoration(color: Colors.black.withOpacity(0.8)),
             child: Column(
               children: [
-                ...List.generate(
-                  _visibleDialoguesCount.clamp(0, dialogues.length),
-                  (index) {
-                    if (index >= dialogues.length) return const SizedBox();
-                    final dialogue = dialogues[index];
-                    final character = state.characters.firstWhere(
-                      (c) => c.characterId == dialogue.characterId,
-                      orElse: () => TaikenCharacter(
-                        characterId: '',
-                        taikenId: '',
-                        characterName: 'Narrator',
-                        displayOrder: -1,
-                        createdAt: DateTime.now(),
+                if (_visibleDialoguesCount < dialogues.length)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.touch_app,
+                            color: Colors.grey[600], size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Tap anywhere to continue • $_visibleDialoguesCount/${dialogues.length}',
+                          style: TextStyle(
+                              color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_visibleDialoguesCount >= dialogues.length)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _visibleDialoguesCount = 0;
+                          _selectedAnswerIndex = null;
+                          _showExplanation = false;
+                        });
+                        ref
+                            .read(taikenExperienceProvider(widget.taikenId)
+                            .notifier)
+                            .advanceDialogue();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                        Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                    );
-                    return _buildAnimatedDialogueCard(
-                      dialogue,
-                      character,
-                      index,
-                    );
-                  },
-                ),
-                const SizedBox(height: 100),
+                      child: const Text(
+                        'Continue to Questions',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-        ),
-
-        // Bottom UI
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.8),
-          ),
-          child: Column(
-            children: [
-              if (_visibleDialoguesCount < dialogues.length)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.touch_app, color: Colors.grey[600], size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Tap anywhere to continue • ${_visibleDialoguesCount}/${dialogues.length}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              if (_visibleDialoguesCount >= dialogues.length)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Reset dialogue counter when moving to questions
-                      setState(() {
-                        _visibleDialoguesCount = 0;
-                        _selectedAnswerIndex = null;
-                        _showExplanation = false;
-                      });
-                      
-                      // Advance to questions
-                      ref.read(taikenExperienceProvider(widget.taikenId).notifier)
-                          .advanceDialogue();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Continue to Questions',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-
-  Widget _buildAnimatedDialogueCard(
-    TaikenDialogue dialogue,
-    TaikenCharacter character,
-    int index,
-) {
-  final isNarrator = character.characterName == 'Narrator';
-  final isLeftAligned = index % 2 == 0;
-
-  return TweenAnimationBuilder<double>(
-    duration: const Duration(milliseconds: 400),
-    curve: Curves.easeOutBack,
-    tween: Tween(begin: 0.0, end: 1.0),
-    builder: (context, value, child) {
-      // Clamp the value to ensure it's always between 0.0 and 1.0
-      final clampedValue = value.clamp(0.0, 1.0);
-      
-      return Transform.scale(
-        scale: clampedValue,
-        alignment: isLeftAligned ? Alignment.centerLeft : Alignment.centerRight,
-        child: Opacity(
-          opacity: clampedValue,  // Use clamped value
-          child: child,
-        ),
-      );
-    },
-    child: Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment:
-        isLeftAligned ? MainAxisAlignment.start : MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (isLeftAligned && !isNarrator)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: CircleAvatar(
-                radius: 16,
-                backgroundImage: character.characterImageUrl != null
-                    ? NetworkImage(character.characterImageUrl!)
-                    : null,
-                backgroundColor: Colors.grey[800],
-                child: character.characterImageUrl == null
-                    ? const Icon(Icons.person, size: 16, color: Colors.white)
-                    : null,
-              ),
-            ),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isNarrator
-                    ? Colors.grey[900]?.withOpacity(0.9)
-                    : isLeftAligned
-                    ? Colors.blue[900]?.withOpacity(0.9)
-                    : Colors.green[900]?.withOpacity(0.9),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft:
-                  isLeftAligned ? Radius.zero : const Radius.circular(16),
-                  bottomRight:
-                  isLeftAligned ? const Radius.circular(16) : Radius.zero,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    character.characterName,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dialogue.dialogueText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!isLeftAligned && !isNarrator)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: CircleAvatar(
-                radius: 16,
-                backgroundImage: character.characterImageUrl != null
-                    ? NetworkImage(character.characterImageUrl!)
-                    : null,
-                backgroundColor: Colors.grey[800],
-                child: character.characterImageUrl == null
-                    ? const Icon(Icons.person, size: 16, color: Colors.white)
-                    : null,
-              ),
-            ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
+
+  Widget _buildAnimatedDialogueCard(
+      TaikenDialogue dialogue,
+      TaikenCharacter character,
+      int index,
+      ) {
+    final isNarrator = character.characterName == 'Narrator';
+    final isLeftAligned = index % 2 == 0;
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutBack,
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        final clampedValue = value.clamp(0.0, 1.0);
+        return Transform.scale(
+          scale: clampedValue,
+          alignment: isLeftAligned
+              ? Alignment.centerLeft
+              : Alignment.centerRight,
+          child: Opacity(opacity: clampedValue, child: child),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Row(
+          mainAxisAlignment: isLeftAligned
+              ? MainAxisAlignment.start
+              : MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (isLeftAligned && !isNarrator)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: character.characterImageUrl != null
+                      ? NetworkImage(character.characterImageUrl!)
+                      : null,
+                  backgroundColor: Colors.grey[800],
+                  child: character.characterImageUrl == null
+                      ? const Icon(Icons.person,
+                      size: 16, color: Colors.white)
+                      : null,
+                ),
+              ),
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(
+                    maxWidth:
+                    MediaQuery.of(context).size.width * 0.75),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isNarrator
+                      ? Colors.grey[900]?.withOpacity(0.9)
+                      : isLeftAligned
+                      ? Colors.blue[900]?.withOpacity(0.9)
+                      : Colors.green[900]?.withOpacity(0.9),
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: isLeftAligned
+                        ? Radius.zero
+                        : const Radius.circular(16),
+                    bottomRight: isLeftAligned
+                        ? const Radius.circular(16)
+                        : Radius.zero,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      character.characterName,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      dialogue.dialogueText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (!isLeftAligned && !isNarrator)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: character.characterImageUrl != null
+                      ? NetworkImage(character.characterImageUrl!)
+                      : null,
+                  backgroundColor: Colors.grey[800],
+                  child: character.characterImageUrl == null
+                      ? const Icon(Icons.person,
+                      size: 16, color: Colors.white)
+                      : null,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Question section (unchanged) ─────────────────────────────────────────────
 
   Widget _buildQuestionSection(TaikenExperienceState state) {
     final question = state.currentQuestions[state.currentQuestionIndex];
@@ -1078,11 +1150,7 @@ void _showNextDialogue(int totalDialogues) {
           ...List.generate(
             question.options.length,
                 (index) => _buildOptionButton(
-              question.options[index],
-              index,
-              question,
-              state,
-            ),
+                question.options[index], index, question, state),
           ),
           if (_showExplanation && question.explanation != null) ...[
             const SizedBox(height: 16),
@@ -1099,11 +1167,8 @@ void _showNextDialogue(int totalDialogues) {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.blue[300],
-                        size: 20,
-                      ),
+                      Icon(Icons.info_outline,
+                          color: Colors.blue[300], size: 20),
                       const SizedBox(width: 8),
                       Text(
                         'Explanation',
@@ -1119,10 +1184,7 @@ void _showNextDialogue(int totalDialogues) {
                   Text(
                     question.explanation!,
                     style: TextStyle(
-                      color: Colors.grey[300],
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
+                        color: Colors.grey[300], fontSize: 14, height: 1.5),
                   ),
                 ],
               ),
@@ -1144,8 +1206,7 @@ void _showNextDialogue(int totalDialogues) {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text(
                   'Continue',
@@ -1208,7 +1269,8 @@ void _showNextDialogue(int totalDialogues) {
               .read(taikenExperienceProvider(widget.taikenId).notifier)
               .submitAnswer(question.questionId, index);
 
-          _updateXPBar(ref.read(taikenExperienceProvider(widget.taikenId)));
+          _updateXPBar(
+              ref.read(taikenExperienceProvider(widget.taikenId)));
         }
             : null,
         borderRadius: BorderRadius.circular(12),
@@ -1235,7 +1297,8 @@ void _showNextDialogue(int totalDialogues) {
                 child: showResult && isCorrect
                     ? const Icon(Icons.check, size: 16, color: Colors.white)
                     : showResult && isSelected && !isCorrect
-                    ? const Icon(Icons.close, size: 16, color: Colors.white)
+                    ? const Icon(Icons.close,
+                    size: 16, color: Colors.white)
                     : null,
               ),
               const SizedBox(width: 12),
