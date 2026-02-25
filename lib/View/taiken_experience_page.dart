@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'dart:ui';
 import '../ViewModel/taiken_experience_provider.dart';
 import '../ViewModel/streak_provider.dart'; // ✅ NEW
@@ -9,10 +10,7 @@ import 'widgets/streak_widgets.dart'; // ✅ NEW — StreakBadge, MilestoneToast
 class TaikenExperiencePage extends ConsumerStatefulWidget {
   final String taikenId;
 
-  const TaikenExperiencePage({
-    super.key,
-    required this.taikenId,
-  });
+  const TaikenExperiencePage({super.key, required this.taikenId});
 
   @override
   ConsumerState<TaikenExperiencePage> createState() =>
@@ -126,7 +124,9 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
         _xpAnimationController.reset();
         _xpAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(
           CurvedAnimation(
-              parent: _xpAnimationController, curve: Curves.easeInOut),
+            parent: _xpAnimationController,
+            curve: Curves.easeInOut,
+          ),
         );
       }
     } catch (e) {
@@ -225,11 +225,15 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 200,
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.image_not_supported, size: 64),
-                    ),
+                    errorBuilder:
+                        (context, error, stackTrace) => Container(
+                          height: 200,
+                          color: Colors.grey[800],
+                          child: const Icon(
+                            Icons.image_not_supported,
+                            size: 64,
+                          ),
+                        ),
                   ),
                 ),
               const SizedBox(height: 32),
@@ -249,33 +253,45 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                   color: Colors.grey[900],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  state.taiken!.introScript,
+                child: TypewriterText(
+                  text: state.taiken!.introScript,
                   style: TextStyle(
-                      color: Colors.grey[300], fontSize: 16, height: 1.5),
+                    color: Colors.grey[300],
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
               const SizedBox(height: 24),
               _buildInfoRow(
-                  Icons.layers, '${state.taiken!.totalStages} Stages'),
+                Icons.layers,
+                '${state.taiken!.totalStages} Stages',
+              ),
               const SizedBox(height: 8),
               _buildInfoRow(
-                  Icons.quiz, '${state.taiken!.totalQuestions} Questions'),
+                Icons.quiz,
+                '${state.taiken!.totalQuestions} Questions',
+              ),
               const SizedBox(height: 8),
-              _buildInfoRow(Icons.check_circle,
-                  'Pass: ${state.taiken!.passThreshold}% correct'),
+              _buildInfoRow(
+                Icons.check_circle,
+                'Pass: ${state.taiken!.passThreshold}% correct',
+              ),
 
               // ✅ Streak hint
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF6B35).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: const Color(0xFFFF6B35).withOpacity(0.3)),
+                    color: const Color(0xFFFF6B35).withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -297,8 +313,9 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 child: ElevatedButton(
                   onPressed: () {
                     ref
-                        .read(taikenExperienceProvider(widget.taikenId)
-                        .notifier)
+                        .read(
+                          taikenExperienceProvider(widget.taikenId).notifier,
+                        )
                         .startExperience();
                   },
                   style: ElevatedButton.styleFrom(
@@ -306,7 +323,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text(
                     'Start Experience',
@@ -327,8 +345,7 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
       children: [
         Icon(icon, color: Colors.blue, size: 20),
         const SizedBox(width: 8),
-        Text(text,
-            style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 14)),
       ],
     );
   }
@@ -374,26 +391,37 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                   color: Colors.grey[900],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  isPassed
-                      ? state.taiken!.outroSuccessScript
-                      : state.taiken!.outroFailureScript,
+                child: TypewriterText(
+                  text:
+                      isPassed
+                          ? state.taiken!.outroSuccessScript
+                          : state.taiken!.outroFailureScript,
                   style: TextStyle(
-                      color: Colors.grey[300], fontSize: 16, height: 1.5),
+                    color: Colors.grey[300],
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
               const SizedBox(height: 32),
-              _buildResultStat('Accuracy', '${accuracy.toStringAsFixed(1)}%',
-                  isPassed ? Colors.green : Colors.red),
+              _buildResultStat(
+                'Accuracy',
+                '${accuracy.toStringAsFixed(1)}%',
+                isPassed ? Colors.green : Colors.red,
+              ),
               const SizedBox(height: 12),
               _buildResultStat(
-                  'Correct Answers',
-                  '${state.progress!.correctAnswers}/${state.progress!.questionsAnswered}',
-                  Colors.blue),
+                'Correct Answers',
+                '${state.progress!.correctAnswers}/${state.progress!.questionsAnswered}',
+                Colors.blue,
+              ),
               const SizedBox(height: 12),
-              _buildResultStat('Final XP', '${_currentXP.toStringAsFixed(0)}%',
-                  _currentXP > 50 ? Colors.green : Colors.orange),
+              _buildResultStat(
+                'Final XP',
+                '${_currentXP.toStringAsFixed(0)}%',
+                _currentXP > 50 ? Colors.green : Colors.orange,
+              ),
 
               // ✅ Streak result
               const SizedBox(height: 12),
@@ -426,7 +454,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text(
                     'Back to Taikens',
@@ -445,12 +474,15 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: const BorderSide(color: Colors.white),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text(
                       'Try Again',
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -471,9 +503,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
   }) {
     const orange = Color(0xFFFF6B35);
     final color = isStreakActive ? orange : Colors.grey.shade700;
-    final label = isStreakActive
-        ? '$currentStreak day streak 🔥'
-        : 'Complete a stage to start your streak';
+    final label =
+        isStreakActive
+            ? '$currentStreak day streak 🔥'
+            : 'Complete a stage to start your streak';
 
     return Container(
       width: double.infinity,
@@ -513,16 +546,22 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500)),
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -550,16 +589,20 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                     color: Colors.amber,
                     size: 32,
                   ),
-                  onPressed: isSubmitted
-                      ? null
-                      : () async {
-                    setLocalState(() => selectedRating = starIndex);
-                    await ref
-                        .read(taikenExperienceProvider(widget.taikenId)
-                        .notifier)
-                        .rateTaiken(starIndex, null);
-                    setLocalState(() => isSubmitted = true);
-                  },
+                  onPressed:
+                      isSubmitted
+                          ? null
+                          : () async {
+                            setLocalState(() => selectedRating = starIndex);
+                            await ref
+                                .read(
+                                  taikenExperienceProvider(
+                                    widget.taikenId,
+                                  ).notifier,
+                                )
+                                .rateTaiken(starIndex, null);
+                            setLocalState(() => isSubmitted = true);
+                          },
                 );
               }),
             ),
@@ -605,8 +648,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
             padding: const EdgeInsets.only(right: 4),
             child: Center(
               child: Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -620,8 +665,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -661,20 +708,19 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Container(color: Colors.grey[900]),
+                    errorBuilder:
+                        (context, error, stackTrace) =>
+                            Container(color: Colors.grey[900]),
                   ),
                   BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child:
-                    Container(color: Colors.black.withOpacity(0.5)),
+                    child: Container(color: Colors.black.withOpacity(0.5)),
                   ),
                 ],
               ),
             )
           else
-            Positioned.fill(
-                child: Container(color: Colors.grey[900])),
+            Positioned.fill(child: Container(color: Colors.grey[900])),
 
           // Main image (non-blurred center)
           if (state.currentStage?.sceneImageUrl != null)
@@ -683,8 +729,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 child: Image.network(
                   state.currentStage!.sceneImageUrl!,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                  const SizedBox(),
+                  errorBuilder:
+                      (context, error, stackTrace) => const SizedBox(),
                 ),
               ),
             ),
@@ -713,16 +759,17 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 _buildXPBar(state),
                 _buildProgressBar(state),
                 Expanded(
-                  child: hasDialogues && state.hasMoreDialogues
-                      ? _buildDialogueSection(state)
-                      : hasQuestions && state.hasMoreQuestions
-                      ? _buildQuestionSection(state)
-                      : const Center(
-                    child: Text(
-                      'No content',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
+                  child:
+                      hasDialogues && state.hasMoreDialogues
+                          ? _buildDialogueSection(state)
+                          : hasQuestions && state.hasMoreQuestions
+                          ? _buildQuestionSection(state)
+                          : const Center(
+                            child: Text(
+                              'No content',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
                 ),
               ],
             ),
@@ -845,10 +892,11 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
               Text(
                 'Accuracy: ${state.progress!.accuracyPercentage.toStringAsFixed(1)}%',
                 style: TextStyle(
-                  color: state.progress!.accuracyPercentage >=
-                      state.taiken!.passThreshold
-                      ? Colors.green
-                      : Colors.orange,
+                  color:
+                      state.progress!.accuracyPercentage >=
+                              state.taiken!.passThreshold
+                          ? Colors.green
+                          : Colors.orange,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -888,9 +936,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     }
 
     return GestureDetector(
-      onTap: _isAdvancingDialogue
-          ? null
-          : () => _showNextDialogue(dialogues.length),
+      onTap:
+          _isAdvancingDialogue
+              ? null
+              : () => _showNextDialogue(dialogues.length),
       behavior: HitTestBehavior.translucent,
       child: Column(
         children: [
@@ -902,21 +951,25 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 children: [
                   ...List.generate(
                     _visibleDialoguesCount.clamp(0, dialogues.length),
-                        (index) {
+                    (index) {
                       if (index >= dialogues.length) return const SizedBox();
                       final dialogue = dialogues[index];
                       final character = state.characters.firstWhere(
-                            (c) => c.characterId == dialogue.characterId,
-                        orElse: () => TaikenCharacter(
-                          characterId: '',
-                          taikenId: '',
-                          characterName: 'Narrator',
-                          displayOrder: -1,
-                          createdAt: DateTime.now(),
-                        ),
+                        (c) => c.characterId == dialogue.characterId,
+                        orElse:
+                            () => TaikenCharacter(
+                              characterId: '',
+                              taikenId: '',
+                              characterName: 'Narrator',
+                              displayOrder: -1,
+                              createdAt: DateTime.now(),
+                            ),
                       );
                       return _buildAnimatedDialogueCard(
-                          dialogue, character, index);
+                        dialogue,
+                        character,
+                        index,
+                      );
                     },
                   ),
                   const SizedBox(height: 100),
@@ -926,14 +979,15 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
           ),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration:
-            BoxDecoration(color: Colors.black.withOpacity(0.8)),
+            decoration: BoxDecoration(color: Colors.black.withOpacity(0.8)),
             child: Column(
               children: [
                 if (_visibleDialoguesCount < dialogues.length)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey[900],
                       borderRadius: BorderRadius.circular(8),
@@ -942,13 +996,18 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.touch_app,
-                            color: Colors.grey[600], size: 16),
+                        Icon(
+                          Icons.touch_app,
+                          color: Colors.grey[600],
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Tap anywhere to continue • $_visibleDialoguesCount/${dialogues.length}',
                           style: TextStyle(
-                              color: Colors.grey[600], fontSize: 12),
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -964,22 +1023,27 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                           _showExplanation = false;
                         });
                         ref
-                            .read(taikenExperienceProvider(widget.taikenId)
-                            .notifier)
+                            .read(
+                              taikenExperienceProvider(
+                                widget.taikenId,
+                              ).notifier,
+                            )
                             .advanceDialogue();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                        Theme.of(context).colorScheme.primary,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text(
                         'Continue to Questions',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -992,10 +1056,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
   }
 
   Widget _buildAnimatedDialogueCard(
-      TaikenDialogue dialogue,
-      TaikenCharacter character,
-      int index,
-      ) {
+    TaikenDialogue dialogue,
+    TaikenCharacter character,
+    int index,
+  ) {
     final isNarrator = character.characterName == 'Narrator';
     final isLeftAligned = index % 2 == 0;
 
@@ -1007,18 +1071,16 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
         final clampedValue = value.clamp(0.0, 1.0);
         return Transform.scale(
           scale: clampedValue,
-          alignment: isLeftAligned
-              ? Alignment.centerLeft
-              : Alignment.centerRight,
+          alignment:
+              isLeftAligned ? Alignment.centerLeft : Alignment.centerRight,
           child: Opacity(opacity: clampedValue, child: child),
         );
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Row(
-          mainAxisAlignment: isLeftAligned
-              ? MainAxisAlignment.start
-              : MainAxisAlignment.end,
+          mainAxisAlignment:
+              isLeftAligned ? MainAxisAlignment.start : MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (isLeftAligned && !isNarrator)
@@ -1026,37 +1088,41 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 padding: const EdgeInsets.only(right: 8),
                 child: CircleAvatar(
                   radius: 16,
-                  backgroundImage: character.characterImageUrl != null
-                      ? NetworkImage(character.characterImageUrl!)
-                      : null,
+                  backgroundImage:
+                      character.characterImageUrl != null
+                          ? NetworkImage(character.characterImageUrl!)
+                          : null,
                   backgroundColor: Colors.grey[800],
-                  child: character.characterImageUrl == null
-                      ? const Icon(Icons.person,
-                      size: 16, color: Colors.white)
-                      : null,
+                  child:
+                      character.characterImageUrl == null
+                          ? const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.white,
+                          )
+                          : null,
                 ),
               ),
             Flexible(
               child: Container(
                 constraints: BoxConstraints(
-                    maxWidth:
-                    MediaQuery.of(context).size.width * 0.75),
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                ),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isNarrator
-                      ? Colors.grey[900]?.withOpacity(0.9)
-                      : isLeftAligned
-                      ? Colors.blue[900]?.withOpacity(0.9)
-                      : Colors.green[900]?.withOpacity(0.9),
+                  color:
+                      isNarrator
+                          ? Colors.grey[900]?.withOpacity(0.9)
+                          : isLeftAligned
+                          ? Colors.blue[900]?.withOpacity(0.9)
+                          : Colors.green[900]?.withOpacity(0.9),
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
-                    bottomLeft: isLeftAligned
-                        ? Radius.zero
-                        : const Radius.circular(16),
-                    bottomRight: isLeftAligned
-                        ? const Radius.circular(16)
-                        : Radius.zero,
+                    bottomLeft:
+                        isLeftAligned ? Radius.zero : const Radius.circular(16),
+                    bottomRight:
+                        isLeftAligned ? const Radius.circular(16) : Radius.zero,
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -1078,8 +1144,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      dialogue.dialogueText,
+                    TypewriterText(
+                      text: dialogue.dialogueText,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
@@ -1095,14 +1161,19 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 padding: const EdgeInsets.only(left: 8),
                 child: CircleAvatar(
                   radius: 16,
-                  backgroundImage: character.characterImageUrl != null
-                      ? NetworkImage(character.characterImageUrl!)
-                      : null,
+                  backgroundImage:
+                      character.characterImageUrl != null
+                          ? NetworkImage(character.characterImageUrl!)
+                          : null,
                   backgroundColor: Colors.grey[800],
-                  child: character.characterImageUrl == null
-                      ? const Icon(Icons.person,
-                      size: 16, color: Colors.white)
-                      : null,
+                  child:
+                      character.characterImageUrl == null
+                          ? const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.white,
+                          )
+                          : null,
                 ),
               ),
           ],
@@ -1134,8 +1205,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 const Icon(Icons.quiz, color: Colors.blue, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    question.questionText,
+                  child: TypewriterText(
+                    text: question.questionText,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -1149,8 +1220,12 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
           const SizedBox(height: 24),
           ...List.generate(
             question.options.length,
-                (index) => _buildOptionButton(
-                question.options[index], index, question, state),
+            (index) => _buildOptionButton(
+              question.options[index],
+              index,
+              question,
+              state,
+            ),
           ),
           if (_showExplanation && question.explanation != null) ...[
             const SizedBox(height: 16),
@@ -1167,8 +1242,11 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline,
-                          color: Colors.blue[300], size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue[300],
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Explanation',
@@ -1184,7 +1262,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                   Text(
                     question.explanation!,
                     style: TextStyle(
-                        color: Colors.grey[300], fontSize: 14, height: 1.5),
+                      color: Colors.grey[300],
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),
@@ -1206,7 +1287,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text(
                   'Continue',
@@ -1221,11 +1303,11 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
   }
 
   Widget _buildOptionButton(
-      String option,
-      int index,
-      TaikenQuestion question,
-      TaikenExperienceState state,
-      ) {
+    String option,
+    int index,
+    TaikenQuestion question,
+    TaikenExperienceState state,
+  ) {
     final isSelected = _selectedAnswerIndex == index;
     final isCorrect = index == question.correctOptionIndex;
     final showResult = _selectedAnswerIndex != null;
@@ -1249,9 +1331,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
         textColor = Colors.grey[400]!;
       }
     } else {
-      backgroundColor = isSelected
-          ? Colors.blue.withOpacity(0.3)
-          : Colors.grey[900]!.withOpacity(0.7);
+      backgroundColor =
+          isSelected
+              ? Colors.blue.withOpacity(0.3)
+              : Colors.grey[900]!.withOpacity(0.7);
       borderColor = isSelected ? Colors.blue : Colors.grey[700]!;
       textColor = isSelected ? Colors.blue : Colors.white;
     }
@@ -1259,20 +1342,22 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: _selectedAnswerIndex == null
-            ? () async {
-          setState(() {
-            _selectedAnswerIndex = index;
-            _showExplanation = true;
-          });
-          await ref
-              .read(taikenExperienceProvider(widget.taikenId).notifier)
-              .submitAnswer(question.questionId, index);
+        onTap:
+            _selectedAnswerIndex == null
+                ? () async {
+                  setState(() {
+                    _selectedAnswerIndex = index;
+                    _showExplanation = true;
+                  });
+                  await ref
+                      .read(taikenExperienceProvider(widget.taikenId).notifier)
+                      .submitAnswer(question.questionId, index);
 
-          _updateXPBar(
-              ref.read(taikenExperienceProvider(widget.taikenId)));
-        }
-            : null,
+                  _updateXPBar(
+                    ref.read(taikenExperienceProvider(widget.taikenId)),
+                  );
+                }
+                : null,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
@@ -1290,16 +1375,17 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: borderColor, width: 2),
-                  color: isSelected || (showResult && isCorrect)
-                      ? borderColor
-                      : Colors.transparent,
+                  color:
+                      isSelected || (showResult && isCorrect)
+                          ? borderColor
+                          : Colors.transparent,
                 ),
-                child: showResult && isCorrect
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
-                    : showResult && isSelected && !isCorrect
-                    ? const Icon(Icons.close,
-                    size: 16, color: Colors.white)
-                    : null,
+                child:
+                    showResult && isCorrect
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : showResult && isSelected && !isCorrect
+                        ? const Icon(Icons.close, size: 16, color: Colors.white)
+                        : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1316,6 +1402,82 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ============================================
+// ✨ TYPEWRITER TEXT WIDGET
+// Reveals text character-by-character like a retro JRPG dialogue system
+// ============================================
+
+class TypewriterText extends StatefulWidget {
+  final String text;
+  final TextStyle? style;
+  final Duration duration;
+  final TextAlign? textAlign;
+
+  const TypewriterText({
+    super.key,
+    required this.text,
+    this.style,
+    this.duration = const Duration(milliseconds: 30),
+    this.textAlign,
+  });
+
+  @override
+  State<TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<TypewriterText> {
+  String _displayedText = '';
+  int _currentIndex = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAnimation();
+  }
+
+  @override
+  void didUpdateWidget(TypewriterText oldWidget) {
+    if (oldWidget.text != widget.text) {
+      _displayedText = '';
+      _currentIndex = 0;
+      _timer?.cancel();
+      _startAnimation();
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  void _startAnimation() {
+    _timer = Timer.periodic(widget.duration, (timer) {
+      if (_currentIndex < widget.text.length) {
+        if (mounted) {
+          setState(() {
+            _displayedText += widget.text[_currentIndex];
+            _currentIndex++;
+          });
+        }
+      } else {
+        _timer?.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _displayedText,
+      style: widget.style,
+      textAlign: widget.textAlign,
     );
   }
 }
