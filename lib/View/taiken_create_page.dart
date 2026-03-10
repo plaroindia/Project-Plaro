@@ -1,8 +1,38 @@
+// =============================================================================
+// taiken_create_page.dart  — FINAL
+//
+// Changes from previous version (new fields wired into UI):
+//
+//   Page 0 – Basic Info
+//     + Pass threshold slider (50 – 100)
+//     + Series section: "Is this part of a series?" toggle
+//       → expands to show Series ID text field + Episode number field
+//
+//   Page 2 – Characters
+//     + Portrait side toggle (Left / Right) per character card
+//     + "Player character" checkbox per character card
+//
+//   Page 3 – Stages
+//     + Stage mood dropdown (neutral / tense / happy / dramatic /
+//       mysterious / urgent) per stage card
+//     + Stage type dropdown (story / challenge / mixed) per stage card
+//     + Per dialogue: emotion + typewriter speed dropdowns
+//     + Per dialogue: pause after (ms) number field
+//     + Per question: "Learning gate" toggle
+//       → expands to show domain field + skip delay seconds field
+//
+//   All existing pages (Page 1 Scripts, Page 4 Review) are unchanged.
+//   All existing provider calls use the same method names.
+//   The review page now also shows series info and pass threshold.
+// =============================================================================
+
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../ViewModel/taiken_create_provider.dart';
-import '../ViewModel/streak_provider.dart'; // ✅ NEW
-import 'dart:io';
+import '../Model/taiken.dart';
 
 class TaikenCreatePage extends ConsumerStatefulWidget {
   const TaikenCreatePage({super.key});
@@ -15,17 +45,24 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final _titleController = TextEditingController();
+  // Text controllers for Page 0
+  final _titleController       = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _introScriptController = TextEditingController();
-  final _outroSuccessController = TextEditingController();
-  final _outroFailureController = TextEditingController();
+  final _seriesIdController    = TextEditingController();
+
+  // Text controllers for Page 1
+  final _introScriptController    = TextEditingController();
+  final _outroSuccessController   = TextEditingController();
+  final _outroFailureController   = TextEditingController();
+
+  bool _showSeriesFields = false;
 
   @override
   void dispose() {
     _pageController.dispose();
     _titleController.dispose();
     _descriptionController.dispose();
+    _seriesIdController.dispose();
     _introScriptController.dispose();
     _outroSuccessController.dispose();
     _outroFailureController.dispose();
@@ -35,33 +72,24 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
   void _nextPage() {
     if (_currentPage < 4) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut);
     }
   }
 
   void _previousPage() {
     if (_currentPage > 0) {
       _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut);
     }
   }
 
-  // ── Publish handler ──────────────────────────────────────────────────────────
   Future<void> _handleCreate() async {
     final success =
     await ref.read(taikenCreateProvider.notifier).createTaiken();
-
     if (!mounted) return;
-
     if (success) {
-      // ✅ Show milestone toast if one was earned during the publish flow.
-      // The MilestoneToastListener further up the widget tree handles this
-      // automatically via newMilestoneProvider, so no manual SnackBar needed
-      // for milestones.  We still show the basic success message here.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Taiken published successfully! 🎉'),
@@ -69,29 +97,24 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-
-      // Reset provider state so a second taiken can be created cleanly
       ref.read(taikenCreateProvider.notifier).reset();
       Navigator.pop(context);
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(taikenCreateProvider);
 
-    // ── Error listener ─────────────────────────────────────────────────────────
-    // Shows errors (validation or network) as a SnackBar so they're visible
-    // regardless of which page step the user is on.
     ref.listen<TaikenCreateState>(taikenCreateProvider, (prev, next) {
       if (next.error != null && next.error != prev?.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.error!),
-            backgroundColor: Colors.red.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(next.error!),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ));
         ref.read(taikenCreateProvider.notifier).clearError();
       }
     });
@@ -108,10 +131,8 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
               onPressed: state.isLoading ? null : _handleCreate,
               child: state.isLoading
                   ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Publish'),
             ),
         ],
@@ -123,7 +144,7 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (page) => setState(() => _currentPage = page),
+              onPageChanged: (p) => setState(() => _currentPage = p),
               children: [
                 _buildBasicInfoPage(),
                 _buildScriptsPage(),
@@ -139,35 +160,29 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     );
   }
 
-  // ── Progress bar ─────────────────────────────────────────────────────────────
-
-  Widget _buildProgressIndicator() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: List.generate(5, (index) {
-          final isActive = index == _currentPage;
-          final isCompleted = index < _currentPage;
-          return Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              height: 4,
-              decoration: BoxDecoration(
-                color: isCompleted
-                    ? Theme.of(context).colorScheme.primary
-                    : isActive
-                    ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
-                    : Colors.grey[700],
-                borderRadius: BorderRadius.circular(2),
-              ),
+  Widget _buildProgressIndicator() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    child: Row(
+      children: List.generate(5, (i) {
+        final isActive    = i == _currentPage;
+        final isCompleted = i < _currentPage;
+        return Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            height: 4,
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? Theme.of(context).colorScheme.primary
+                  : isActive
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+                  : Colors.grey[700],
+              borderRadius: BorderRadius.circular(2),
             ),
-          );
-        }),
-      ),
-    );
-  }
-
-  // ── Navigation buttons ───────────────────────────────────────────────────────
+          ),
+        );
+      }),
+    ),
+  );
 
   Widget _buildNavigationButtons() {
     final state = ref.watch(taikenCreateProvider);
@@ -177,15 +192,14 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, -2)),
         ],
       ),
       child: Row(
         children: [
-          if (_currentPage > 0)
+          if (_currentPage > 0) ...[
             Expanded(
               child: OutlinedButton(
                 onPressed: _previousPage,
@@ -197,7 +211,8 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
                 child: const Text('Back'),
               ),
             ),
-          if (_currentPage > 0) const SizedBox(width: 16),
+            const SizedBox(width: 16),
+          ],
           Expanded(
             child: ElevatedButton(
               onPressed: _currentPage == 4
@@ -216,7 +231,9 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     );
   }
 
-  // ── Page 0: Basic info ───────────────────────────────────────────────────────
+  // =========================================================================
+  // PAGE 0 — Basic info
+  // =========================================================================
 
   Widget _buildBasicInfoPage() {
     final state = ref.watch(taikenCreateProvider);
@@ -225,14 +242,7 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Basic Information',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          _sectionTitle('Basic Information'),
           const SizedBox(height: 24),
 
           // Thumbnail
@@ -241,7 +251,7 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
                 ref.read(taikenCreateProvider.notifier).pickThumbnail(),
             child: Container(
               width: double.infinity,
-              height: 180,
+              height: 160,
               decoration: BoxDecoration(
                 color: Colors.grey[850],
                 borderRadius: BorderRadius.circular(12),
@@ -249,12 +259,10 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
               ),
               child: state.thumbnailFile != null
                   ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  File(state.thumbnailFile!.path),
-                  fit: BoxFit.cover,
-                ),
-              )
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                      File(state.thumbnailFile!.path),
+                      fit: BoxFit.cover))
                   : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -267,190 +275,227 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Title
-          TextField(
+          _formField(
             controller: _titleController,
-            style:
-            TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            decoration: InputDecoration(
-              labelText: 'Taiken Title',
-              labelStyle: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7)),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+            label: 'Taiken Title',
             onChanged: (v) =>
                 ref.read(taikenCreateProvider.notifier).updateTitle(v),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Description
-          TextField(
+          _formField(
             controller: _descriptionController,
-            style:
-            TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            label: 'Description',
             maxLines: 3,
-            decoration: InputDecoration(
-              labelText: 'Description',
-              labelStyle: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7)),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             onChanged: (v) =>
                 ref.read(taikenCreateProvider.notifier).updateDescription(v),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Domain
-          DropdownButtonFormField<String>(
+          _dropdownField<String>(
+            label: 'Domain',
             value: state.domain.isEmpty ? null : state.domain,
-            dropdownColor: Theme.of(context).cardColor,
-            style:
-            TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            decoration: InputDecoration(
-              labelText: 'Domain',
-              labelStyle: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7)),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            items: ['Science', 'Business', 'History', 'Technology', 'Arts']
-                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                .toList(),
+            items: ['Science', 'Business', 'History', 'Technology', 'Arts'],
             onChanged: (v) {
               if (v != null)
                 ref.read(taikenCreateProvider.notifier).updateDomain(v);
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Difficulty
-          DropdownButtonFormField<String>(
+          _dropdownField<String>(
+            label: 'Difficulty',
             value: state.difficulty,
-            dropdownColor: Theme.of(context).cardColor,
-            style:
-            TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            decoration: InputDecoration(
-              labelText: 'Difficulty',
-              labelStyle: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7)),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            items: ['beginner', 'intermediate', 'advanced']
-                .map((d) => DropdownMenuItem(
-              value: d,
-              child: Text(d[0].toUpperCase() + d.substring(1)),
-            ))
-                .toList(),
+            items: ['beginner', 'intermediate', 'advanced'],
+            displayBuilder: (v) => v[0].toUpperCase() + v.substring(1),
             onChanged: (v) {
               if (v != null)
                 ref.read(taikenCreateProvider.notifier).updateDifficulty(v);
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Total Stages
-          TextField(
+          // Number of stages
+          TextFormField(
             keyboardType: TextInputType.number,
-            style:
-            TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            decoration: InputDecoration(
-              labelText: 'Number of Stages',
-              labelStyle: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7)),
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
-              border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+            initialValue: state.totalStages.toString(),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface),
+            decoration: _inputDecoration('Number of Stages'),
             onChanged: (v) {
-              final count = int.tryParse(v);
-              if (count != null && count > 0)
-                ref.read(taikenCreateProvider.notifier).setTotalStages(count);
+              final n = int.tryParse(v);
+              if (n != null && n > 0)
+                ref.read(taikenCreateProvider.notifier).setTotalStages(n);
             },
           ),
+          const SizedBox(height: 20),
+
+          // ★ Pass threshold slider
+          _sectionSubtitle('Pass Threshold: ${state.passThreshold}%'),
+          Slider(
+            value: state.passThreshold.toDouble(),
+            min: 30, max: 100, divisions: 14,
+            label: '${state.passThreshold}%',
+            activeColor: Theme.of(context).colorScheme.primary,
+            onChanged: (v) => ref
+                .read(taikenCreateProvider.notifier)
+                .updatePassThreshold(v.toInt()),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Players need ${state.passThreshold}% correct answers to complete this Taiken.',
+            style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withOpacity(0.5),
+                fontSize: 12),
+          ),
+          const SizedBox(height: 20),
+
+          // ★ Series section
+          _buildSeriesSection(state),
         ],
       ),
     );
   }
 
-  // ── Page 1: Scripts ──────────────────────────────────────────────────────────
-
-  Widget _buildScriptsPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  Widget _buildSeriesSection(TaikenCreateState state) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.purple.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.withOpacity(0.25)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Story Scripts',
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                const Icon(Icons.play_circle_outline,
+                    color: Colors.purple, size: 18),
+                const SizedBox(width: 8),
+                Text('Part of a Series?',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600)),
+              ]),
+              Switch(
+                value: _showSeriesFields,
+                activeColor: Colors.purple,
+                onChanged: (v) {
+                  setState(() => _showSeriesFields = v);
+                  if (!v) {
+                    ref
+                        .read(taikenCreateProvider.notifier)
+                        .updateSeriesId(null);
+                    ref
+                        .read(taikenCreateProvider.notifier)
+                        .updateEpisodeNumber(null);
+                    _seriesIdController.clear();
+                  }
+                },
+              ),
+            ],
+          ),
+          if (_showSeriesFields) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Create or paste the series UUID from the taiken_series table.',
+              style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.5),
+                  fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _seriesIdController,
               style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Write the intro and outro narratives for your Taiken',
+                  fontSize: 13),
+              decoration: _inputDecoration('Series UUID'),
+              onChanged: (v) => ref
+                  .read(taikenCreateProvider.notifier)
+                  .updateSeriesId(v.trim().isEmpty ? null : v.trim()),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              keyboardType: TextInputType.number,
+              initialValue: state.episodeNumber?.toString(),
               style: TextStyle(
-                  color:
-                  Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 14)),
-          const SizedBox(height: 24),
-
-          _buildScriptField(
-            label: 'Introduction',
-            hint: 'Write the opening narrative that sets the stage...',
-            controller: _introScriptController,
-            onChanged: (v) =>
-                ref.read(taikenCreateProvider.notifier).updateIntroScript(v),
-          ),
-          const SizedBox(height: 24),
-          _buildScriptField(
-            label: 'Success Outro',
-            hint: 'What happens when the user succeeds...',
-            controller: _outroSuccessController,
-            onChanged: (v) => ref
-                .read(taikenCreateProvider.notifier)
-                .updateOutroSuccessScript(v),
-          ),
-          const SizedBox(height: 24),
-          _buildScriptField(
-            label: 'Failure Outro',
-            hint: 'What happens when the user fails...',
-            controller: _outroFailureController,
-            onChanged: (v) => ref
-                .read(taikenCreateProvider.notifier)
-                .updateOutroFailureScript(v),
-          ),
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 13),
+              decoration: _inputDecoration('Episode Number (1-based)'),
+              onChanged: (v) {
+                final n = int.tryParse(v);
+                ref
+                    .read(taikenCreateProvider.notifier)
+                    .updateEpisodeNumber(n);
+              },
+            ),
+          ],
         ],
       ),
     );
   }
+
+  // =========================================================================
+  // PAGE 1 — Scripts (unchanged)
+  // =========================================================================
+
+  Widget _buildScriptsPage() => SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Story Scripts'),
+        const SizedBox(height: 6),
+        Text('Write the intro and outro narratives for your Taiken',
+            style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withOpacity(0.55),
+                fontSize: 13)),
+        const SizedBox(height: 24),
+        _buildScriptField(
+          label: 'Introduction',
+          hint: 'Write the opening narrative that sets the stage...',
+          controller: _introScriptController,
+          onChanged: (v) => ref
+              .read(taikenCreateProvider.notifier)
+              .updateIntroScript(v),
+        ),
+        const SizedBox(height: 24),
+        _buildScriptField(
+          label: 'Success Outro',
+          hint: 'What happens when the user succeeds...',
+          controller: _outroSuccessController,
+          onChanged: (v) => ref
+              .read(taikenCreateProvider.notifier)
+              .updateOutroSuccessScript(v),
+        ),
+        const SizedBox(height: 24),
+        _buildScriptField(
+          label: 'Failure Outro',
+          hint: 'What happens when the user fails...',
+          controller: _outroFailureController,
+          onChanged: (v) => ref
+              .read(taikenCreateProvider.notifier)
+              .updateOutroFailureScript(v),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildScriptField({
     required String label,
@@ -461,25 +506,24 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 16,
-                fontWeight: FontWeight.w600)),
+        _sectionSubtitle(label),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          style:
+          TextStyle(color: Theme.of(context).colorScheme.onSurface),
           maxLines: 5,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-                color:
-                Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withOpacity(0.5)),
             filled: true,
             fillColor: Theme.of(context).cardColor,
-            border:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12)),
           ),
           onChanged: onChanged,
         ),
@@ -487,7 +531,9 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     );
   }
 
-  // ── Page 2: Characters ───────────────────────────────────────────────────────
+  // =========================================================================
+  // PAGE 2 — Characters  (★ added portrait side + isPlayer)
+  // =========================================================================
 
   Widget _buildCharactersPage() {
     final state = ref.watch(taikenCreateProvider);
@@ -498,18 +544,15 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Characters',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold)),
+              _sectionTitle('Characters'),
               ElevatedButton.icon(
                 onPressed: () =>
                     ref.read(taikenCreateProvider.notifier).addCharacter(),
                 icon: const Icon(Icons.add),
-                label: const Text('Add Character'),
+                label: const Text('Add'),
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary),
+                    backgroundColor:
+                    Theme.of(context).colorScheme.primary),
               ),
             ],
           ),
@@ -532,16 +575,16 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.6),
+                            .withOpacity(0.55),
                         fontSize: 16)),
               ],
             ),
           )
               : ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 16),
             itemCount: state.characters.length,
-            itemBuilder: (context, index) =>
-                _buildCharacterCard(index),
+            itemBuilder: (_, i) => _buildCharacterCard(i),
           ),
         ),
       ],
@@ -550,7 +593,7 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
 
   Widget _buildCharacterCard(int index) {
     final state = ref.watch(taikenCreateProvider);
-    final character = state.characters[index];
+    final c     = state.characters[index];
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       color: Theme.of(context).cardColor,
@@ -558,70 +601,136 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
       RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            GestureDetector(
-              onTap: () => ref
-                  .read(taikenCreateProvider.notifier)
-                  .pickCharacterImage(index),
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey[850],
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[700]!),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Portrait image picker
+                GestureDetector(
+                  onTap: () => ref
+                      .read(taikenCreateProvider.notifier)
+                      .pickCharacterImage(index),
+                  child: Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[850],
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey[700]!),
+                    ),
+                    child: c.characterImage != null
+                        ? ClipOval(
+                        child: Image.file(
+                            File(c.characterImage!.path),
+                            fit: BoxFit.cover))
+                        : Icon(Icons.person,
+                        size: 36, color: Colors.grey[600]),
+                  ),
                 ),
-                child: character.characterImage != null
-                    ? ClipOval(
-                  child: Image.file(
-                    File(character.characterImage!.path),
-                    fit: BoxFit.cover,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface,
+                            fontWeight: FontWeight.w600),
+                        decoration: const InputDecoration(
+                            hintText: 'Character name',
+                            border: InputBorder.none),
+                        onChanged: (v) => ref
+                            .read(taikenCreateProvider.notifier)
+                            .updateCharacter(
+                            index, c.copyWith(characterName: v)),
+                      ),
+                      TextField(
+                        style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface,
+                            fontSize: 12),
+                        decoration: const InputDecoration(
+                            hintText: 'Description (optional)',
+                            border: InputBorder.none),
+                        onChanged: (v) => ref
+                            .read(taikenCreateProvider.notifier)
+                            .updateCharacter(index,
+                            c.copyWith(characterDescription: v)),
+                      ),
+                    ],
                   ),
-                )
-                    : Icon(Icons.person, size: 40, color: Colors.grey[600]),
-              ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  color: Colors.red,
+                  onPressed: () => ref
+                      .read(taikenCreateProvider.notifier)
+                      .removeCharacter(index),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
+            const SizedBox(height: 12),
+
+            // ★ Portrait side toggle
+            Row(
+              children: [
+                Text('Portrait side:',
                     style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.w600),
-                    decoration: const InputDecoration(
-                        hintText: 'Character name',
-                        border: InputBorder.none),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7),
+                        fontSize: 13)),
+                const SizedBox(width: 12),
+                SegmentedButton<PortraitSide>(
+                  segments: const [
+                    ButtonSegment(
+                        value: PortraitSide.left,
+                        label: Text('Left'),
+                        icon: Icon(Icons.align_horizontal_left, size: 14)),
+                    ButtonSegment(
+                        value: PortraitSide.right,
+                        label: Text('Right'),
+                        icon: Icon(Icons.align_horizontal_right,
+                            size: 14)),
+                  ],
+                  selected: {c.portraitSide},
+                  onSelectionChanged: (s) => ref
+                      .read(taikenCreateProvider.notifier)
+                      .updateCharacter(index,
+                      c.copyWith(portraitSide: s.first)),
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: MaterialStateProperty.all(
+                        const TextStyle(fontSize: 12)),
+                  ),
+                ),
+                const Spacer(),
+                // ★ isPlayer toggle
+                Row(children: [
+                  Text('Player',
+                      style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7),
+                          fontSize: 13)),
+                  Checkbox(
+                    value: c.isPlayer,
                     onChanged: (v) => ref
                         .read(taikenCreateProvider.notifier)
-                        .updateCharacter(
-                        index,
-                        character.copyWith(characterName: v)),
+                        .updateCharacter(index,
+                        c.copyWith(isPlayer: v ?? false)),
+                    activeColor:
+                    Theme.of(context).colorScheme.primary,
+                    materialTapTargetSize:
+                    MaterialTapTargetSize.shrinkWrap,
                   ),
-                  TextField(
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontSize: 12),
-                    decoration: const InputDecoration(
-                        hintText: 'Description (optional)',
-                        border: InputBorder.none),
-                    onChanged: (v) => ref
-                        .read(taikenCreateProvider.notifier)
-                        .updateCharacter(
-                        index,
-                        character.copyWith(characterDescription: v)),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              color: Colors.red,
-              onPressed: () => ref
-                  .read(taikenCreateProvider.notifier)
-                  .removeCharacter(index),
+                ]),
+              ],
             ),
           ],
         ),
@@ -629,7 +738,9 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     );
   }
 
-  // ── Page 3: Stages ───────────────────────────────────────────────────────────
+  // =========================================================================
+  // PAGE 3 — Stages  (★ mood, stageType, dialogue fields, gate fields)
+  // =========================================================================
 
   Widget _buildStagesPage() {
     final state = ref.watch(taikenCreateProvider);
@@ -639,27 +750,23 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
           padding: const EdgeInsets.all(16),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text('Configure Stages',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold)),
+            child: _sectionTitle('Configure Stages'),
           ),
         ),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: state.stages.length,
-            itemBuilder: (context, index) => _buildStageCard(index),
+            itemBuilder: (_, i) => _buildStageCard(i),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStageCard(int stageIndex) {
+  Widget _buildStageCard(int si) {
     final state = ref.watch(taikenCreateProvider);
-    final stage = state.stages[stageIndex];
+    final stage = state.stages[si];
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       color: Theme.of(context).cardColor,
@@ -667,7 +774,7 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
       RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
         title: Text(
-          'Stage ${stageIndex + 1}: ${stage.stageTitle}',
+          'Stage ${si + 1}: ${stage.stageTitle}',
           style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.w600),
@@ -678,61 +785,80 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Stage title field
+                // Title
                 TextField(
                   style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface),
-                  decoration: InputDecoration(
-                    labelText: 'Stage Title',
-                    labelStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.7)),
-                    filled: true,
-                    fillColor: Theme.of(context).scaffoldBackgroundColor,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
                   controller:
                   TextEditingController(text: stage.stageTitle),
+                  decoration: _inputDecoration('Stage Title'),
                   onChanged: (v) => ref
                       .read(taikenCreateProvider.notifier)
-                      .updateStage(stageIndex,
-                      stage.copyWith(stageTitle: v)),
+                      .updateStage(si, stage.copyWith(stageTitle: v)),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+
+                // ★ Mood dropdown
+                _dropdownField<StageMood>(
+                  label: 'Mood',
+                  value: stage.mood,
+                  items: StageMood.values,
+                  displayBuilder: (v) =>
+                  v.name[0].toUpperCase() + v.name.substring(1),
+                  onChanged: (v) {
+                    if (v != null)
+                      ref
+                          .read(taikenCreateProvider.notifier)
+                          .updateStage(si, stage.copyWith(mood: v));
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // ★ Stage type dropdown
+                _dropdownField<StageType>(
+                  label: 'Stage Type',
+                  value: stage.stageType,
+                  items: StageType.values,
+                  displayBuilder: (v) =>
+                  v.name[0].toUpperCase() + v.name.substring(1),
+                  onChanged: (v) {
+                    if (v != null)
+                      ref
+                          .read(taikenCreateProvider.notifier)
+                          .updateStage(si, stage.copyWith(stageType: v));
+                  },
+                ),
+                const SizedBox(height: 14),
 
                 // Scene image
                 GestureDetector(
                   onTap: () => ref
                       .read(taikenCreateProvider.notifier)
-                      .pickSceneImage(stageIndex), // ✅ matches provider method
+                      .pickSceneImage(si),
                   child: Container(
                     width: double.infinity,
-                    height: 150,
+                    height: 120,
                     decoration: BoxDecoration(
                       color: Colors.grey[850],
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.grey[700]!),
                     ),
                     child: stage.sceneImage != null
                         ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(stage.sceneImage!.path),
-                        fit: BoxFit.cover,
-                      ),
-                    )
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                            File(stage.sceneImage!.path),
+                            fit: BoxFit.cover))
                         : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.landscape,
-                            size: 48, color: Colors.grey[600]),
-                        const SizedBox(height: 8),
-                        Text('Add Scene Image',
-                            style:
-                            TextStyle(color: Colors.grey[600])),
+                            size: 40, color: Colors.grey[600]),
+                        const SizedBox(height: 6),
+                        Text('Add Scene / Background',
+                            style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12)),
                       ],
                     ),
                   ),
@@ -740,51 +866,25 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
                 const SizedBox(height: 16),
 
                 // Dialogues
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Dialogues',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle),
-                      color: Theme.of(context).colorScheme.primary,
-                      onPressed: () => ref
-                          .read(taikenCreateProvider.notifier)
-                          .addDialogue(stageIndex),
-                    ),
-                  ],
+                _stageSubHeader(
+                  'Dialogues',
+                  onAdd: () => ref
+                      .read(taikenCreateProvider.notifier)
+                      .addDialogue(si),
                 ),
-                ...List.generate(
-                  stage.dialogues.length,
-                      (di) => _buildDialogueField(stageIndex, di),
-                ),
+                ...List.generate(stage.dialogues.length,
+                        (di) => _buildDialogueField(si, di)),
                 const SizedBox(height: 16),
 
                 // Questions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Questions',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle),
-                      color: Theme.of(context).colorScheme.primary,
-                      onPressed: () => ref
-                          .read(taikenCreateProvider.notifier)
-                          .addQuestion(stageIndex),
-                    ),
-                  ],
+                _stageSubHeader(
+                  'Questions',
+                  onAdd: () => ref
+                      .read(taikenCreateProvider.notifier)
+                      .addQuestion(si),
                 ),
-                ...List.generate(
-                  stage.questions.length,
-                      (qi) => _buildQuestionField(stageIndex, qi),
-                ),
+                ...List.generate(stage.questions.length,
+                        (qi) => _buildQuestionField(si, qi)),
               ],
             ),
           ),
@@ -793,9 +893,9 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     );
   }
 
-  Widget _buildDialogueField(int stageIndex, int dialogueIndex) {
-    final state = ref.watch(taikenCreateProvider);
-    final dialogue = state.stages[stageIndex].dialogues[dialogueIndex];
+  Widget _buildDialogueField(int si, int di) {
+    final state    = ref.watch(taikenCreateProvider);
+    final dialogue = state.stages[si].dialogues[di];
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -804,9 +904,11 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              // Character picker
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: dialogue.characterTempId,
@@ -821,59 +923,118 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
                   items: [
                     const DropdownMenuItem(
                         value: null, child: Text('Narrator')),
-                    ...state.characters.map((char) => DropdownMenuItem(
-                      value: char.tempId,
-                      child: Text(char.characterName),
+                    ...state.characters.map((c) => DropdownMenuItem(
+                      value: c.tempId,
+                      child: Text(c.characterName),
                     )),
                   ],
                   onChanged: (v) => ref
                       .read(taikenCreateProvider.notifier)
                       .updateDialogue(
-                    stageIndex,
-                    dialogueIndex,
-                    // ✅ uses the correct signature: (stageIndex, dialogueIndex, DialogueData)
-                    dialogue.copyWith(characterTempId: v),
-                  ),
+                      si, di, dialogue.copyWith(characterTempId: v)),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete, size: 20),
+                icon: const Icon(Icons.delete, size: 18),
                 color: Colors.red,
                 onPressed: () => ref
                     .read(taikenCreateProvider.notifier)
-                    .removeDialogue(stageIndex, dialogueIndex),
+                    .removeDialogue(si, di),
               ),
             ],
           ),
+          // Dialogue text
           TextField(
-            style:
-            TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface),
             maxLines: 2,
             decoration: const InputDecoration(
-                hintText: 'Enter dialogue text...', border: InputBorder.none),
+                hintText: 'Enter dialogue text...',
+                border: InputBorder.none),
             onChanged: (v) => ref
                 .read(taikenCreateProvider.notifier)
                 .updateDialogue(
-              stageIndex,
-              dialogueIndex,
-              dialogue.copyWith(dialogueText: v),
+                si, di, dialogue.copyWith(dialogueText: v)),
+          ),
+          const Divider(height: 12),
+
+          // ★ Emotion + typewriter speed row
+          Row(
+            children: [
+              Expanded(
+                child: _compactDropdown<DialogueEmotion>(
+                  label: 'Emotion',
+                  value: dialogue.emotion,
+                  items: DialogueEmotion.values,
+                  onChanged: (v) {
+                    if (v != null)
+                      ref
+                          .read(taikenCreateProvider.notifier)
+                          .updateDialogue(si, di,
+                          dialogue.copyWith(emotion: v));
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _compactDropdown<TypewriterSpeed>(
+                  label: 'Speed',
+                  value: dialogue.typewriterSpeed,
+                  items: TypewriterSpeed.values,
+                  onChanged: (v) {
+                    if (v != null)
+                      ref
+                          .read(taikenCreateProvider.notifier)
+                          .updateDialogue(si, di,
+                          dialogue.copyWith(typewriterSpeed: v));
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // ★ Pause after (ms)
+          TextFormField(
+            keyboardType: TextInputType.number,
+            initialValue: dialogue.pauseAfterMs > 0
+                ? dialogue.pauseAfterMs.toString()
+                : '',
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 12),
+            decoration: InputDecoration(
+              labelText: 'Dramatic pause after (ms, 0 = none)',
+              labelStyle: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.55),
+                  fontSize: 11),
+              isDense: true,
+              border: InputBorder.none,
             ),
+            onChanged: (v) {
+              final ms = int.tryParse(v) ?? 0;
+              ref.read(taikenCreateProvider.notifier).updateDialogue(
+                  si, di, dialogue.copyWith(pauseAfterMs: ms));
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuestionField(int stageIndex, int questionIndex) {
-    final state = ref.watch(taikenCreateProvider);
-    final question = state.stages[stageIndex].questions[questionIndex];
+  Widget _buildQuestionField(int si, int qi) {
+    final state    = ref.watch(taikenCreateProvider);
+    final question = state.stages[si].questions[qi];
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
+        color: Colors.blue.withOpacity(0.09),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withOpacity(0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -886,52 +1047,116 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
                       color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(
-                      hintText: 'Question text...', border: InputBorder.none),
+                      hintText: 'Question text...',
+                      border: InputBorder.none),
                   onChanged: (v) => ref
                       .read(taikenCreateProvider.notifier)
-                      .updateQuestion(stageIndex, questionIndex,
-                      question.copyWith(questionText: v)),
+                      .updateQuestion(
+                      si, qi, question.copyWith(questionText: v)),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete, size: 20),
+                icon: const Icon(Icons.delete, size: 18),
                 color: Colors.red,
                 onPressed: () => ref
                     .read(taikenCreateProvider.notifier)
-                    .removeQuestion(stageIndex, questionIndex),
+                    .removeQuestion(si, qi),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          ...List.generate(
-            question.options.length,
-                (oi) => _buildOptionField(stageIndex, questionIndex, oi, question),
+          ...List.generate(question.options.length,
+                  (oi) => _buildOptionField(si, qi, oi, question)),
+
+          // Explanation
+          TextField(
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 12),
+            decoration: const InputDecoration(
+                hintText: 'Explanation (optional)',
+                border: InputBorder.none),
+            onChanged: (v) => ref
+                .read(taikenCreateProvider.notifier)
+                .updateQuestion(
+                si, qi, question.copyWith(explanation: v)),
           ),
+
+          const Divider(height: 14),
+
+          // ★ Learning gate toggle
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                const Icon(Icons.menu_book_rounded,
+                    color: Colors.orange, size: 16),
+                const SizedBox(width: 6),
+                Text('Learning Gate',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ]),
+              Switch(
+                value: question.hasLearningGate,
+                activeColor: Colors.orange,
+                onChanged: (v) => ref
+                    .read(taikenCreateProvider.notifier)
+                    .updateQuestion(si, qi,
+                    question.copyWith(hasLearningGate: v)),
+              ),
+            ],
+          ),
+          if (question.hasLearningGate) ...[
+            const SizedBox(height: 6),
+            TextField(
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 12),
+              decoration: _inputDecoration('Gate domain (e.g. data_analysis)'),
+              onChanged: (v) => ref
+                  .read(taikenCreateProvider.notifier)
+                  .updateQuestion(si, qi,
+                  question.copyWith(gateContentDomain: v)),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              keyboardType: TextInputType.number,
+              initialValue: question.gateSkipDelaySeconds.toString(),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 12),
+              decoration: _inputDecoration('Skip delay (seconds)'),
+              onChanged: (v) {
+                final s = int.tryParse(v) ?? 5;
+                ref
+                    .read(taikenCreateProvider.notifier)
+                    .updateQuestion(si, qi,
+                    question.copyWith(gateSkipDelaySeconds: s));
+              },
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildOptionField(
-      int stageIndex,
-      int questionIndex,
-      int optionIndex,
-      QuestionData question,
-      ) {
+      int si, int qi, int oi, QuestionData question) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           Radio<int>(
-            value: optionIndex,
+            value: oi,
             groupValue: question.correctOptionIndex,
             onChanged: (v) {
               if (v != null)
-                ref.read(taikenCreateProvider.notifier).updateQuestion(
-                  stageIndex,
-                  questionIndex,
-                  question.copyWith(correctOptionIndex: v),
-                );
+                ref
+                    .read(taikenCreateProvider.notifier)
+                    .updateQuestion(si, qi,
+                    question.copyWith(correctOptionIndex: v));
             },
           ),
           Expanded(
@@ -939,16 +1164,15 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
               style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
-                  hintText: 'Option ${optionIndex + 1}',
+                  hintText: 'Option ${oi + 1}',
                   border: InputBorder.none),
               onChanged: (v) {
-                final updatedOptions = List<String>.from(question.options);
-                updatedOptions[optionIndex] = v;
-                ref.read(taikenCreateProvider.notifier).updateQuestion(
-                  stageIndex,
-                  questionIndex,
-                  question.copyWith(options: updatedOptions),
-                );
+                final opts = List<String>.from(question.options);
+                opts[oi] = v;
+                ref
+                    .read(taikenCreateProvider.notifier)
+                    .updateQuestion(
+                    si, qi, question.copyWith(options: opts));
               },
             ),
           ),
@@ -957,101 +1181,229 @@ class _TaikenCreatePageState extends ConsumerState<TaikenCreatePage> {
     );
   }
 
-  // ── Page 4: Review ───────────────────────────────────────────────────────────
+  // =========================================================================
+  // PAGE 4 — Review  (★ added series info + pass threshold)
+  // =========================================================================
 
   Widget _buildReviewPage() {
-    final state = ref.watch(taikenCreateProvider);
-    final totalQuestions =
-    state.stages.fold<int>(0, (sum, s) => sum + s.questions.length);
+    final state          = ref.watch(taikenCreateProvider);
+    final totalQuestions = state.stages
+        .fold<int>(0, (sum, s) => sum + s.questions.length);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Review & Publish',
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+          _sectionTitle('Review & Publish'),
           const SizedBox(height: 24),
-          _buildReviewItem('Title', state.title),
-          _buildReviewItem('Domain', state.domain),
-          _buildReviewItem('Difficulty', state.difficulty),
-          _buildReviewItem('Stages', '${state.totalStages}'),
-          _buildReviewItem('Total Questions', '$totalQuestions'),
-          _buildReviewItem('Characters', '${state.characters.length}'),
-
-          // ✅ Streak reminder — motivates completion
+          _reviewRow('Title',           state.title),
+          _reviewRow('Domain',          state.domain),
+          _reviewRow('Difficulty',      state.difficulty),
+          _reviewRow('Pass Threshold',  '${state.passThreshold}%'),   // ★
+          _reviewRow('Stages',          '${state.totalStages}'),
+          _reviewRow('Total Questions', '$totalQuestions'),
+          _reviewRow('Characters',      '${state.characters.length}'),
+          if (state.seriesId != null) ...[                             // ★
+            _reviewRow('Series',        state.seriesId!.substring(0, 8) + '…'),
+            if (state.episodeNumber != null)
+              _reviewRow('Episode', '${state.episodeNumber}'),
+          ],
           const SizedBox(height: 24),
+          // Streak/points reminder (unchanged)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFFF6B35).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: const Color(0xFFFF6B35).withOpacity(0.3)),
+              border:
+              Border.all(color: const Color(0xFFFF6B35).withOpacity(0.3)),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.local_fire_department_rounded,
-                    color: Color(0xFFFF6B35)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Publishing earns 10 Plaro points!',
+            child: Row(children: [
+              const Icon(Icons.local_fire_department_rounded,
+                  color: Color(0xFFFF6B35)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Publishing earns 10 Plaro points!',
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      Text(
-                        'Players who complete your stages will also build their streak.',
-                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface)),
+                    Text(
+                      'Players who complete your stages will also build their streak.',
+                      style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
+                              .withOpacity(0.55)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ]),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReviewItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _reviewRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(label,
+              style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.55),
+                  fontWeight: FontWeight.w500)),
+        ),
+        Expanded(
+          child: Text(value,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600)),
+        ),
+      ],
+    ),
+  );
+
+  // =========================================================================
+  // SHARED HELPER WIDGETS
+  // =========================================================================
+
+  Widget _sectionTitle(String text) => Text(
+    text,
+    style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
+        fontSize: 22,
+        fontWeight: FontWeight.bold),
+  );
+
+  Widget _sectionSubtitle(String text) => Text(
+    text,
+    style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
+        fontSize: 14,
+        fontWeight: FontWeight.w600),
+  );
+
+  Widget _stageSubHeader(String label, {required VoidCallback onAdd}) =>
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(label,
-                style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.6),
-                    fontWeight: FontWeight.w500)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600)),
+          Text(label,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600)),
+          IconButton(
+            icon: const Icon(Icons.add_circle),
+            color: Theme.of(context).colorScheme.primary,
+            onPressed: onAdd,
           ),
         ],
-      ),
-    );
-  }
+      );
+
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: TextStyle(
+        color: Theme.of(context)
+            .colorScheme
+            .onSurface
+            .withOpacity(0.65)),
+    filled: true,
+    fillColor: Theme.of(context).cardColor,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  );
+
+  Widget _formField({
+    required TextEditingController controller,
+    required String label,
+    int maxLines = 1,
+    required void Function(String) onChanged,
+  }) =>
+      TextField(
+        controller: controller,
+        style:
+        TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        maxLines: maxLines,
+        decoration: _inputDecoration(label),
+        onChanged: onChanged,
+      );
+
+  Widget _dropdownField<T>({
+    required String label,
+    required T? value,
+    required List<T> items,
+    String Function(T)? displayBuilder,
+    required void Function(T?) onChanged,
+  }) =>
+      DropdownButtonFormField<T>(
+        value: value,
+        dropdownColor: Theme.of(context).cardColor,
+        style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface),
+        decoration: _inputDecoration(label),
+        items: items
+            .map((item) => DropdownMenuItem<T>(
+          value: item,
+          child: Text(displayBuilder != null
+              ? displayBuilder(item)
+              : item.toString()),
+        ))
+            .toList(),
+        onChanged: onChanged,
+      );
+
+  /// Compact inline dropdown for tight spaces (dialogue row).
+  Widget _compactDropdown<T>({
+    required String label,
+    required T value,
+    required List<T> items,
+    required void Function(T?) onChanged,
+  }) =>
+      DropdownButtonFormField<T>(
+        value: value,
+        dropdownColor: Theme.of(context).cardColor,
+        style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 12),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withOpacity(0.55),
+              fontSize: 11),
+          isDense: true,
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          filled: true,
+          fillColor: Theme.of(context).scaffoldBackgroundColor,
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8)),
+        ),
+        items: items
+            .map((item) => DropdownMenuItem<T>(
+          value: item,
+          child: Text(
+            item is Enum
+                ? (item as Enum).name
+                : item.toString(),
+            style: const TextStyle(fontSize: 12),
+          ),
+        ))
+            .toList(),
+        onChanged: onChanged,
+      );
 }

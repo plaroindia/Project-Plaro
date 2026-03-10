@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'post_page.dart';
-import 'package:plaro_3/View/taiken_list_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../ViewModel/setProfileProvider.dart';
 import '../ViewModel/auth_provider.dart';
@@ -9,9 +8,9 @@ import '../ViewModel/post_feed_provider.dart';
 import 'widgets/post_card.dart';
 import 'search_page.dart';
 import '../ViewModel/theme_provider.dart';
-import 'allevents_page.dart';
 import 'profile.dart';
 import '../ViewModel/user_provider.dart';
+import '../ViewModel/content_event_tracker.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -21,11 +20,12 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver { // ← ADDED WidgetsBindingObserver
   bool _isLoading = false;
   bool _isInitialized = false;
   bool _feedsInitialized = false;
   final ScrollController _scrollController = ScrollController();
+//  final Map<String, DateTime> _cardEnteredAt = {};
 
   // Optimization: Track if user has scrolled to prevent unnecessary loads
   bool _hasScrolled = false;
@@ -40,14 +40,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
+    // Initialize feeds once on mount — NOT inside build() where it would
+    // re-register on every rebuild and trigger spurious reloads.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserProfile();
+      _initializeFeeds();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // ← ADDED
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // ── App lifecycle: force-flush event buffer when app is backgrounded ───────
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      ref.read(contentEventTrackerProvider).forceFlush(); // ← ADDED
+    }
   }
 
   void _onScroll() {
@@ -104,27 +121,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _initializeFeeds() async {
     if (_feedsInitialized) return;
+    _feedsInitialized = true; // set immediately to prevent any re-entry
 
     final postFeedState = ref.read(postFeedProvider);
 
-    final futures = <Future>[];
+    // Only fetch if there are genuinely no posts AND we're not already loading.
+    // lastFetchTime guard prevents a refetch if we just loaded within 5 min.
+    final bool cacheStale = postFeedState.lastFetchTime == null ||
+        DateTime.now().difference(postFeedState.lastFetchTime!) >
+            const Duration(minutes: 5);
 
-    final bool shouldLoadPosts = postFeedState.posts.isEmpty &&
-        (postFeedState.lastFetchTime == null ||
-            DateTime.now().difference(postFeedState.lastFetchTime!) >
-                Duration(minutes: 5));
-
-
-    if (shouldLoadPosts && !postFeedState.isLoading) {
-      futures.add(ref.read(postFeedProvider.notifier).loadPosts());
-    }
-
-    if (futures.isNotEmpty) {
-      await Future.wait(futures);
-    }
-
-    if (mounted) {
-      setState(() => _feedsInitialized = true);
+    if (postFeedState.posts.isEmpty && cacheStale && !postFeedState.isLoading) {
+      await ref.read(postFeedProvider.notifier).loadPosts();
     }
   }
 
@@ -181,28 +189,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  // ── Build feed list from server-ranked posts ───────────────────────────────
+  // NOTE: Do NOT sort here. The server already returns posts ordered by
+  // relevance_score DESC via the get_user_feed RPC. Re-sorting by created_at
+  // would override the server's personalised ranking entirely.
   List<Map<String, dynamic>> _getCombinedFeed(postFeedState) {
     final List<Map<String, dynamic>> combinedFeed = [];
 
-
     for (final post in postFeedState.posts) {
-      DateTime timestamp;
-      try {
-        timestamp = DateTime.parse(post.created_at);
-      } catch (e) {
-        timestamp = DateTime.now();
-      }
-
       combinedFeed.add({
         'type': 'post',
         'data': post,
-        'timestamp': timestamp,
       });
     }
 
-    combinedFeed.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
-    // Debug logging for combined feed
-    debugPrint('DEBUG: Combined feed counts - ${combinedFeed.map((item) => '${item['type']}: ${item['data'].like_count} likes').toList()}');
+    // ← REMOVED: combinedFeed.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+    // Server order (relevance_score DESC) is intentionally preserved.
+
     return combinedFeed;
   }
 
@@ -216,15 +219,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final postFeedState = ref.watch(postFeedProvider);
     final themeMode = ref.watch(themeNotifierProvider);
 
-    if (!_isInitialized) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _loadUserProfile();
-      });
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-        _initializeFeeds();
-    });
+    // Feed initialization is handled in initState — not here.
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -564,7 +559,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                                  postFeedState.error ??
+                              postFeedState.error ??
                                   'Unknown error',
                               style: const TextStyle(
                                   color: Colors.red,
@@ -600,7 +595,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     duration: const Duration(milliseconds: 200),
                     child: PostCard(
                       post: data,
-                      onTap: () {},
+                      onTap: () {
+                        // ── Track view when post card is tapped ───────
+                        final userId = ref
+                            .read(authStateProvider)
+                            .valueOrNull
+                            ?.user
+                            .id;
+                        if (userId != null) {
+                          ref.read(contentEventTrackerProvider).trackView(
+                            userId: userId,
+                            contentType: 'post',
+                            contentIdInt: int.tryParse(data.post_id ?? ''),
+                            domain: data.domain,
+                            source: 'feed',
+                          );
+                        }
+                      },
                       onUserInfo: () {
                         Navigator.push(
                           context,

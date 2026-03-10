@@ -6,8 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import '../Model/byte.dart';
 import '../Model/comment.dart';
-import 'plaro_points_service.dart';
-import 'streak_provider.dart';
+import 'streakandpoints_provider.dart';
 
 
 // Byte create state
@@ -67,6 +66,10 @@ class BytesFeedState {
   final int currentPage;
   final Map<String, List<Comment>> commentsByByteId;
   final Set<String> loadingComments;
+  // Recommendation cursor fields (keyset pagination)
+  final double? nextCursorScore;
+  final String? nextCursorId;
+  final DateTime? lastFetchTime;
 
   const BytesFeedState({
     this.bytes = const [],
@@ -79,6 +82,9 @@ class BytesFeedState {
     this.currentPage = 0,
     this.commentsByByteId = const {},
     this.loadingComments = const {},
+    this.nextCursorScore,
+    this.nextCursorId,
+    this.lastFetchTime,
   });
 
   BytesFeedState copyWith({
@@ -92,6 +98,10 @@ class BytesFeedState {
     int? currentPage,
     Map<String, List<Comment>>? commentsByByteId,
     Set<String>? loadingComments,
+    double? nextCursorScore,
+    String? nextCursorId,
+    DateTime? lastFetchTime,
+    bool clearCursor = false,
   }) {
     return BytesFeedState(
       bytes: bytes ?? this.bytes,
@@ -104,6 +114,9 @@ class BytesFeedState {
       currentPage: currentPage ?? this.currentPage,
       commentsByByteId: commentsByByteId ?? this.commentsByByteId,
       loadingComments: loadingComments ?? this.loadingComments,
+      nextCursorScore: clearCursor ? null : (nextCursorScore ?? this.nextCursorScore),
+      nextCursorId:    clearCursor ? null : (nextCursorId    ?? this.nextCursorId),
+      lastFetchTime:  lastFetchTime ?? this.lastFetchTime,
     );
   }
 }
@@ -314,214 +327,82 @@ class BytesFeedNotifier extends StateNotifier<BytesFeedState> {
   final SupabaseClient _supabase = Supabase.instance.client;
   static const int _pageSize = 20;
 
+  // ── Feed loading via recommendation RPC ──────────────────────────────────
+
   Future<void> loadBytes() async {
     if (state.isLoading) return;
 
-    state = state.copyWith(isLoading: true, error: null);
+    // Cache hit: don't refetch within 5 minutes
+    if (state.lastFetchTime != null &&
+        DateTime.now().difference(state.lastFetchTime!) < const Duration(minutes: 5) &&
+        state.bytes.isNotEmpty) {
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, error: null, clearCursor: true);
 
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) {
-        debugPrint('No authenticated user');
-        state = state.copyWith(
-          isLoading: false,
-          bytes: [],
-          hasMore: false,
-          currentPage: 1,
-        );
+      final data = await _supabase.rpc('get_user_feed', params: {
+        'p_limit':         _pageSize,
+        'p_content_types': ['byte'],
+      }) as Map<String, dynamic>;
+
+      final items = _parseFeedItems(data);
+
+      // Fallback: recommendations empty, fetch directly
+      if (items.isEmpty) {
+        await _loadBytesDirect();
         return;
       }
 
-      debugPrint('Loading bytes for user: ${user.id}');
-
-      // Test table access
-      try {
-        final testQuery = await _supabase
-            .from('bytes')
-            .select('byte_id')
-            .limit(1);
-        debugPrint('Table exists, found ${testQuery.length} records');
-      } catch (tableError) {
-        debugPrint('Table access error: $tableError');
-        state = state.copyWith(
-          isLoading: false,
-          bytes: [],
-          error: 'Database table not accessible: $tableError',
-        );
-        return;
-      }
-
-      // Fetch bytes with user profiles
-      final response = await _supabase
-          .from('bytes')
-          .select('''
-            *,
-            user_profiles!bytes_user_id_fkey(username, profile_pic)
-          ''')
-          .order('created_at', ascending: false)
-          .limit(_pageSize);
-
-      debugPrint('Query executed successfully, fetched ${response.length} bytes');
-
-      if (response.isEmpty) {
-        debugPrint('No bytes found in database');
-        state = state.copyWith(
-          bytes: [],
-          isLoading: false,
-          hasMore: false,
-          currentPage: 1,
-        );
-        return;
-      }
-
-      // Process bytes
-      final List<Byte> newBytes = [];
-
-      for (var byteData in response) {
-        try {
-          final byteId = byteData['byte_id'];
-          final userProfile = byteData['user_profiles'];
-
-          debugPrint('Processing byte: $byteId');
-
-          // Check if user liked this byte
-          bool isliked = false;
-          try {
-            final likeResponse = await _supabase
-                .from('byte_likes')
-                .select('byte_like_id')
-                .eq('byte_id', byteId)
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-            isliked = likeResponse != null;
-          } catch (e) {
-            debugPrint('Error checking like status for byte $byteId: $e');
-          }
-
-          final byte = Byte.fromJson({
-            'byte_id': byteId,
-            'user_id': byteData['user_id'],
-            'byte': byteData['byte'],
-            'caption': byteData['caption'],
-            'like_count': byteData['like_count'],
-            'comment_count': byteData['comment_count'],
-            'share_count': byteData['share_count'],
-            'created_at': byteData['created_at'],
-            'updated_at': byteData['updated_at'],
-            'username': userProfile?['username'],
-            'profile_pic': userProfile?['profile_pic'],
-            'isliked': isliked,
-          });
-
-          newBytes.add(byte);
-          debugPrint('Added byte: ${byte.byteId}');
-        } catch (byteError, stack) {
-          debugPrint('Error processing byte: $byteError');
-          debugPrint('Stack: $stack');
-          continue;
-        }
-      }
+      final likedIds = await _batchCheckLikes(items);
+      final bytes = items.map((i) => _feedItemToByte(i, likedIds.contains(i['contentId']))).toList();
 
       state = state.copyWith(
-        bytes: newBytes,
-        isLoading: false,
-        hasMore: newBytes.length == _pageSize,
-        currentPage: 1,
+        bytes:          bytes,
+        isLoading:      false,
+        hasMore:        items.length == _pageSize,
+        currentPage:    1,
+        lastFetchTime:  DateTime.now(),
+        nextCursorScore: data['nextCursorScore'] as double?,
+        nextCursorId:    data['nextCursorId']    as String?,
         error: null,
       );
-
-      debugPrint('Successfully loaded ${newBytes.length} bytes');
-    } catch (e, stack) {
-      debugPrint('Error loading bytes: $e');
-      debugPrint('Stack trace: $stack');
-
-      String errorMessage = 'Failed to load bytes';
-      if (e.toString().contains('relation') && e.toString().contains('does not exist')) {
-        errorMessage = 'Database table "bytes" does not exist. Please create it first.';
-      } else if (e.toString().contains('permission denied')) {
-        errorMessage = 'Permission denied. Check RLS policies.';
-      } else if (e.toString().contains('violates foreign key constraint')) {
-        errorMessage = 'User profile not found. Please complete your profile first.';
-      } else {
-        errorMessage = 'Failed to load bytes: ${e.toString()}';
-      }
-
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-        bytes: [],
-      );
+    } catch (e) {
+      debugPrint('[BytesFeed] RPC failed, using direct fallback: $e');
+      await _loadBytesDirect();
     }
   }
 
   Future<void> loadMoreBytes() async {
     if (state.isLoadingMore || !state.hasMore) return;
-
-    final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (state.nextCursorScore == null) return;
 
     state = state.copyWith(isLoadingMore: true, error: null);
 
     try {
-      final startRange = state.currentPage * _pageSize;
-      final endRange = startRange + _pageSize - 1;
+      final data = await _supabase.rpc('get_user_feed', params: {
+        'p_cursor_score':  state.nextCursorScore,
+        'p_cursor_id':     state.nextCursorId,
+        'p_limit':         _pageSize,
+        'p_content_types': ['byte'],
+      }) as Map<String, dynamic>;
 
-      final response = await _supabase
-          .from('bytes')
-          .select('''
-            *,
-            user_profiles!bytes_user_id_fkey(username, profile_pic)
-          ''')
-          .order('created_at', ascending: false)
-          .range(startRange, endRange);
+      final items = _parseFeedItems(data);
+      final likedIds = await _batchCheckLikes(items);
+      final newBytes = items.map((i) => _feedItemToByte(i, likedIds.contains(i['contentId']))).toList();
 
-      final List<Byte> newBytes = [];
-
-      for (var byteData in response) {
-        final byteId = byteData['byte_id'];
-        final String byteIdStr = byteId.toString();
-        final userProfile = byteData['user_profiles'];
-
-        final alreadyExists = state.bytes.any((b) => b.byteId == byteIdStr);
-        if (alreadyExists) continue;
-
-        bool isliked = false;
-        try {
-          final likeResponse = await _supabase
-              .from('byte_likes')
-              .select('byte_like_id')
-              .eq('byte_id', byteId)
-              .eq('user_id', user.id)
-              .maybeSingle();
-          isliked = likeResponse != null;
-        } catch (e) {
-          debugPrint('Error checking like status: $e');
-        }
-
-        final byte = Byte.fromJson({
-          'byte_id': byteId,
-          'user_id': byteData['user_id'],
-          'byte': byteData['byte'],
-          'caption': byteData['caption'],
-          'like_count': byteData['like_count'],
-          'comment_count': byteData['comment_count'],
-          'share_count': byteData['share_count'],
-          'created_at': byteData['created_at'],
-          'updated_at': byteData['updated_at'],
-          'username': userProfile?['username'],
-          'profile_pic': userProfile?['profile_pic'],
-          'isliked': isliked,
-        });
-
-        newBytes.add(byte);
-      }
+      // De-duplicate
+      final existingIds = state.bytes.map((b) => b.byteId).toSet();
+      final deduped = newBytes.where((b) => !existingIds.contains(b.byteId)).toList();
 
       state = state.copyWith(
-        bytes: [...state.bytes, ...newBytes],
-        isLoadingMore: false,
-        hasMore: newBytes.length == _pageSize,
-        currentPage: state.currentPage + 1,
+        bytes:           [...state.bytes, ...deduped],
+        isLoadingMore:   false,
+        hasMore:         newBytes.length == _pageSize,
+        currentPage:     state.currentPage + 1,
+        nextCursorScore: data['nextCursorScore'] as double?,
+        nextCursorId:    data['nextCursorId']    as String?,
       );
     } catch (e) {
       state = state.copyWith(
@@ -531,10 +412,128 @@ class BytesFeedNotifier extends StateNotifier<BytesFeedState> {
     }
   }
 
+
+
   Future<void> refreshBytes() async {
     state = const BytesFeedState();
     await loadBytes();
   }
+
+  // ── Direct fallback: used when pearl_content_recommendations is empty ──────
+  Future<void> _loadBytesDirect() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      final response = await _supabase
+          .from('bytes')
+          .select('*, user_profiles!bytes_user_id_fkey(username, profile_pic)')
+          .eq('is_hidden', false)
+          .order('created_at', ascending: false)
+          .limit(_pageSize);
+
+      final byteIds = (response as List).map((r) => r['byte_id'] as int).toList();
+      Set<String> likedIds = {};
+      if (user != null && byteIds.isNotEmpty) {
+        try {
+          final liked = await _supabase
+              .from('byte_likes')
+              .select('byte_id')
+              .eq('user_id', user.id)
+              .inFilter('byte_id', byteIds);
+          likedIds = (liked as List).map((r) => (r['byte_id'] as int).toString()).toSet();
+        } catch (_) {}
+      }
+
+      final bytes = (response).map((b) {
+        final profile = b['user_profiles'];
+        return Byte.fromJson({
+          'byte_id':       b['byte_id'],
+          'user_id':       b['user_id'],
+          'byte':          b['byte'],
+          'caption':       b['caption'],
+          'like_count':    b['like_count'],
+          'comment_count': b['comment_count'],
+          'share_count':   b['share_count'],
+          'created_at':    b['created_at'],
+          'updated_at':    b['updated_at'],
+          'username':      profile?['username'],
+          'profile_pic':   profile?['profile_pic'],
+          'isliked':       likedIds.contains((b['byte_id'] as int).toString()),
+        });
+      }).toList();
+
+      state = state.copyWith(
+        bytes:         bytes,
+        isLoading:     false,
+        isLoadingMore: false,
+        hasMore:       bytes.length == _pageSize,
+        currentPage:   1,
+        lastFetchTime: DateTime.now(),
+        nextCursorScore: null,
+        nextCursorId:    null,
+        error: null,
+      );
+      debugPrint('[BytesFeed] Fallback loaded \${bytes.length} bytes directly');
+    } catch (e) {
+      state = state.copyWith(
+        isLoading:     false,
+        isLoadingMore: false,
+        error: 'Failed to load bytes: \$e',
+      );
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  List<Map<String, dynamic>> _parseFeedItems(Map<String, dynamic> data) {
+    final list = data['items'] as List? ?? [];
+    return list.cast<Map<String, dynamic>>()
+        .where((i) => i['contentType'] == 'byte')
+        .toList();
+  }
+
+  Future<Set<String>> _batchCheckLikes(List<Map<String, dynamic>> items) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null || items.isEmpty) return {};
+    try {
+      final ids = items
+          .map((i) => int.tryParse(i['contentId'] as String? ?? ''))
+          .whereType<int>()
+          .toList();
+      if (ids.isEmpty) return {};
+      final rows = await _supabase
+          .from('byte_likes')
+          .select('byte_id')
+          .eq('user_id', user.id)
+          .inFilter('byte_id', ids);
+      return (rows as List).map((r) => (r['byte_id'] as int).toString()).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Byte _feedItemToByte(Map<String, dynamic> item, bool isLiked) {
+    // mediaUrls[0] = video URL (set in get_user_feed bytes CTE)
+    final mediaUrls = (item['mediaUrls'] as List?)?.cast<String>() ?? [];
+    final videoUrl = mediaUrls.isNotEmpty ? mediaUrls[0] : '';
+    return Byte.fromJson({
+      'byte_id':       int.tryParse(item['contentId'] as String? ?? '0') ?? 0,
+      'user_id':       '',              // not needed for display
+      'byte':          videoUrl,        // video URL
+      'caption':       item['body'],
+      'like_count':    item['likeCount']    ?? 0,
+      'comment_count': item['commentCount'] ?? 0,
+      'share_count':   item['shareCount']   ?? 0,
+      'created_at':    item['createdAt'],
+      'updated_at':    item['createdAt'],
+      'username':      item['username']  ?? 'Unknown',
+      'profile_pic':   item['profilePic'],
+      'thumbnail_url': item['thumbnailUrl'],
+      'isliked':       isLiked,
+    });
+  }
+
+
+
 
   Future<void> toggleLike(String byteId) async {
     if (state.likingBytes.contains(byteId)) return;
@@ -1133,5 +1132,3 @@ StateNotifierProvider<ByteCreateNotifier, ByteCreateState>((ref) {
 final bytesFeedProvider = StateNotifierProvider<BytesFeedNotifier, BytesFeedState>(
       (ref) => BytesFeedNotifier(),
 );
-
-

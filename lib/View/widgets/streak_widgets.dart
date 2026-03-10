@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../ViewModel/streak_provider.dart';
+import '../../ViewModel/streakandpoints_provider.dart';
 
 // =============================================================================
 // StreakBadge

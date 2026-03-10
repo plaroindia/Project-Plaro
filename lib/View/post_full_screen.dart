@@ -6,6 +6,8 @@ import '../Model/post.dart';
 import '../ViewModel/user_feed_provider.dart';
 import '../ViewModel/post_feed_provider.dart';
 import '../ViewModel/user_provider.dart';
+import '../ViewModel/auth_provider.dart';
+import '../ViewModel/content_event_tracker.dart' hide ContentType; // ✅ ADDED
 import 'widgets/double_tap_like.dart';
 import 'widgets/content_actions.dart';
 import 'widgets/unified_comments_bottom_sheet.dart';
@@ -25,18 +27,85 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
   int _currentMediaIndex = 0;
   final Map<int, VideoPlayerController> _videoControllers = {};
 
+  // ── Dwell tracking ───────────────────────────────────────
+  final DateTime _openedAt = DateTime.now();
+
   @override
   void initState() {
     super.initState();
     _initializeVideos();
+
+    // ── Track view immediately on open ───────────────────
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _trackView();
+    });
   }
 
   @override
   void dispose() {
+    _trackDwell(); // ✅ flush dwell on close
     _scrollController.dispose();
     _disposeVideoControllers();
     super.dispose();
   }
+
+  // ── Event helpers ─────────────────────────────────────────
+
+  void _trackView() {
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+    ref.read(contentEventTrackerProvider).trackView(
+      userId: userId,
+      contentType: 'post',
+      contentIdInt:
+      int.tryParse(widget.post.post_id ?? ''),
+      source: 'profile',
+    );
+  }
+
+  void _trackDwell() {
+    final dwellSeconds =
+        DateTime.now().difference(_openedAt).inSeconds;
+    if (dwellSeconds < 2) return;
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+    ref.read(contentEventTrackerProvider).trackDwell(
+      userId: userId,
+      contentType: 'post',
+      contentIdInt:
+      int.tryParse(widget.post.post_id ?? ''),
+      dwellTimeSeconds: dwellSeconds,
+    );
+  }
+
+  void _trackLike(Post_feed post) {
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+    // Track only when the action is a "like" (not an unlike)
+    if (!post.isliked) {
+      ref.read(contentEventTrackerProvider).trackLike(
+        userId: userId,
+        contentType: 'post',
+        contentIdInt: int.tryParse(post.post_id ?? ''),
+      );
+    }
+  }
+
+  void _trackShare(Post_feed post) {
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+    ref.read(contentEventTrackerProvider).trackShare(
+      userId: userId,
+      contentType: 'post',
+      contentIdInt: int.tryParse(post.post_id ?? ''),
+    );
+  }
+
+  // ── Video management ─────────────────────────────────────
 
   void _initializeVideos() {
     if (widget.post.media_urls == null) return;
@@ -45,7 +114,8 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
       final url = widget.post.media_urls![i];
 
       if (_isVideoUrl(url)) {
-        final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+        final controller =
+        VideoPlayerController.networkUrl(Uri.parse(url));
 
         controller.initialize().then((_) {
           if (!mounted) return;
@@ -61,7 +131,7 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
           return null;
         });
 
-        _videoControllers[i] = controller; // <-- now here it's fine
+        _videoControllers[i] = controller;
       }
     }
   }
@@ -74,12 +144,19 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
   }
 
   bool _isVideoUrl(String url) {
-    final videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.m4v', '.webm'];
-    return videoExtensions.any((ext) => url.toLowerCase().contains(ext));
+    final videoExtensions = [
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.m4v',
+      '.webm'
+    ];
+    return videoExtensions
+        .any((ext) => url.toLowerCase().contains(ext));
   }
 
   void _onMediaPageChanged(int index) {
-    // Pause all videos first
     for (var entry in _videoControllers.entries) {
       entry.value.pause();
     }
@@ -88,7 +165,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
       _currentMediaIndex = index;
     });
 
-    // Play the current video if exists
     if (_videoControllers.containsKey(index)) {
       _videoControllers[index]!.play();
     }
@@ -114,14 +190,15 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
     final feedState = ref.watch(profileFeedProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
 
-    // Find the current post from state (for real-time updates)
     final currentPost = feedState.posts.firstWhere(
           (p) => p.post_id == widget.post.post_id,
       orElse: () => widget.post,
     );
 
-    final isLiking = feedState.likingPosts.contains(currentPost.post_id);
-    final isOwner = currentUserId != null && currentUserId == currentPost.user_id;
+    final isLiking =
+    feedState.likingPosts.contains(currentPost.post_id);
+    final isOwner = currentUserId != null &&
+        currentUserId == currentPost.user_id;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -137,7 +214,8 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
               radius: 16,
               backgroundImage: currentPost.profile_pic != null
                   ? NetworkImage(currentPost.profile_pic!)
-                  : const AssetImage('assets/plaro_logo.png') as ImageProvider,
+                  : const AssetImage('assets/plaro_logo.png')
+              as ImageProvider,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -160,15 +238,25 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
                 contentId: currentPost.post_id ?? '',
                 userId: currentPost.user_id ?? '',
                 contentType: ContentType.post,
-                isHidden: false, // TODO: Add is_hidden field to Post model
+                isHidden: false,
                 shareText: currentPost.content,
-                shareUrl: 'https://yourapp.com/post/${currentPost.post_id}',
+                shareUrl:
+                'https://yourapp.com/post/${currentPost.post_id}',
               ),
               callbacks: ContentActionCallbacks(
-                onEdit: isOwner ? () => _handleEdit(context, ref) : null,
-                onDelete: isOwner ? () => _handleDelete(context, ref) : null,
-                onToggleHide: isOwner ? () => _handleToggleHide(context, ref) : null,
-                onShare: () => _handleShare(context),
+                onEdit: isOwner
+                    ? () => _handleEdit(context, ref)
+                    : null,
+                onDelete: isOwner
+                    ? () => _handleDelete(context, ref)
+                    : null,
+                onToggleHide: isOwner
+                    ? () => _handleToggleHide(context, ref)
+                    : null,
+                onShare: () {
+                  _trackShare(currentPost); // ✅ ADDED
+                  _handleShare(context);
+                },
               ),
               currentUserId: currentUserId,
             ),
@@ -180,25 +268,23 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
             child: CustomScrollView(
               controller: _scrollController,
               slivers: [
-                // Media Section
-                if (currentPost.media_urls != null && currentPost.media_urls!.isNotEmpty)
+                if (currentPost.media_urls != null &&
+                    currentPost.media_urls!.isNotEmpty)
                   SliverToBoxAdapter(
-                    child: _buildMediaSection(currentPost, isLiking),
+                    child: _buildMediaSection(
+                        currentPost, isLiking),
                   ),
 
-                // Post Info Section
                 SliverToBoxAdapter(
-                  child: _buildPostInfoSection(currentPost),
+                  child:
+                  _buildPostInfoSection(currentPost),
                 ),
 
-                // Bottom padding
                 const SliverToBoxAdapter(
-                  child: SizedBox(height: 16),
-                ),
+                    child: SizedBox(height: 16)),
               ],
             ),
           ),
-
         ],
       ),
     );
@@ -212,7 +298,10 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
         children: [
           DoubleTapLike(
             onDoubleTap: () {
-              ref.read(profileFeedProvider.notifier).togglePostLike(post.post_id!);
+              _trackLike(post); // ✅ ADDED (fires before toggle)
+              ref
+                  .read(profileFeedProvider.notifier)
+                  .togglePostLike(post.post_id!);
             },
             isliked: post.isliked,
             isLoading: isLiking,
@@ -223,31 +312,41 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
                 final url = post.media_urls![index];
                 final isVideo = _isVideoUrl(url);
 
-                if (isVideo && _videoControllers.containsKey(index)) {
-                  final controller = _videoControllers[index]!;
+                if (isVideo &&
+                    _videoControllers.containsKey(index)) {
+                  final controller =
+                  _videoControllers[index]!;
 
                   return GestureDetector(
-                    onTap: () => _toggleVideoPlayPause(index),
+                    onTap: () =>
+                        _toggleVideoPlayPause(index),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
                         Center(
-                          child: controller.value.isInitialized
+                          child:
+                          controller.value.isInitialized
                               ? AspectRatio(
-                            aspectRatio: controller.value.aspectRatio,
-                            child: VideoPlayer(controller),
+                            aspectRatio: controller
+                                .value.aspectRatio,
+                            child: VideoPlayer(
+                                controller),
                           )
                               : const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                            valueColor:
+                            AlwaysStoppedAnimation<
+                                Color>(Colors.blue),
                           ),
                         ),
-                        // Play/Pause overlay
-                        if (controller.value.isInitialized && !controller.value.isPlaying)
+                        if (controller.value.isInitialized &&
+                            !controller.value.isPlaying)
                           IgnorePointer(
                             child: Center(
                               child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: const BoxDecoration(
+                                padding:
+                                const EdgeInsets.all(16),
+                                decoration:
+                                const BoxDecoration(
                                   color: Colors.black54,
                                   shape: BoxShape.circle,
                                 ),
@@ -259,7 +358,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
                               ),
                             ),
                           ),
-                        // Video progress indicator
                         if (controller.value.isInitialized)
                           Positioned(
                             bottom: 0,
@@ -271,7 +369,8 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
                               colors: const VideoProgressColors(
                                 playedColor: Colors.blue,
                                 bufferedColor: Colors.grey,
-                                backgroundColor: Colors.white24,
+                                backgroundColor:
+                                Colors.white24,
                               ),
                               padding: const EdgeInsets.all(8),
                             ),
@@ -280,25 +379,32 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
                     ),
                   );
                 } else {
-                  // Display image
                   return Image.network(
                     url,
                     fit: BoxFit.contain,
-                    loadingBuilder: (context, child, loadingProgress) {
+                    loadingBuilder:
+                        (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return Center(
                         child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
+                          value: loadingProgress
+                              .expectedTotalBytes !=
+                              null
+                              ? loadingProgress
+                              .cumulativeBytesLoaded /
+                              loadingProgress
+                                  .expectedTotalBytes!
                               : null,
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                          valueColor:
+                          const AlwaysStoppedAnimation<
+                              Color>(Colors.blue),
                         ),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) {
                       return const Center(
-                        child: Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        child: Icon(Icons.error_outline,
+                            color: Colors.red, size: 48),
                       );
                     },
                   );
@@ -307,7 +413,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
             ),
           ),
 
-          // Media indicator dots
           if (post.media_urls!.length > 1)
             Positioned(
               bottom: 16,
@@ -318,7 +423,8 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
                 children: List.generate(
                   post.media_urls!.length,
                       (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    margin:
+                    const EdgeInsets.symmetric(horizontal: 4),
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
@@ -332,11 +438,11 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
               ),
             ),
 
-          // Video icon indicator for video items
           Positioned(
             top: 16,
             right: 16,
-            child: _isVideoUrl(post.media_urls![_currentMediaIndex])
+            child:
+            _isVideoUrl(post.media_urls![_currentMediaIndex])
                 ? Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -346,11 +452,14 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.play_circle_outline, color: Colors.white, size: 20),
+                  Icon(Icons.play_circle_outline,
+                      color: Colors.white, size: 20),
                   SizedBox(width: 4),
                   Text(
                     'Video',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12),
                   ),
                 ],
               ),
@@ -368,19 +477,23 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Like and Comment Count Row
           Row(
             children: [
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 icon: Icon(
-                  post.isliked ? Icons.favorite : Icons.favorite_border,
+                  post.isliked
+                      ? Icons.favorite
+                      : Icons.favorite_border,
                   color: post.isliked ? Colors.red : Colors.white,
                   size: 28,
                 ),
                 onPressed: () {
-                  ref.read(profileFeedProvider.notifier).togglePostLike(post.post_id!);
+                  _trackLike(post); // ✅ ADDED
+                  ref
+                      .read(profileFeedProvider.notifier)
+                      .togglePostLike(post.post_id!);
                 },
               ),
               const SizedBox(width: 4),
@@ -394,11 +507,13 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
               ),
               const SizedBox(width: 24),
               GestureDetector(
-                onTap: () => _showCommentsBottomSheet(context, ref, post.post_id!),
+                onTap: () => _showCommentsBottomSheet(
+                    context, ref, post.post_id!),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.comment_outlined, color: Colors.white, size: 26),
+                    const Icon(Icons.comment_outlined,
+                        color: Colors.white, size: 26),
                     const SizedBox(width: 4),
                     Text(
                       '${post.comment_count}',
@@ -413,9 +528,10 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.share_outlined, color: Colors.white, size: 26),
+                icon: const Icon(Icons.share_outlined,
+                    color: Colors.white, size: 26),
                 onPressed: () {
-                  // Share functionality
+                  _trackShare(post); // ✅ ADDED
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Share feature coming soon!'),
@@ -430,7 +546,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
 
           const SizedBox(height: 12),
 
-          // Caption
           if (post.content != null && post.content!.isNotEmpty)
             RichText(
               text: TextSpan(
@@ -456,7 +571,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
 
           const SizedBox(height: 8),
 
-          // Timestamp
           Text(
             _formatTimestamp(post.created_at),
             style: TextStyle(
@@ -469,9 +583,21 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
     );
   }
 
-  void _showCommentsBottomSheet(BuildContext context, WidgetRef ref, String postId) {
+  void _showCommentsBottomSheet(
+      BuildContext context, WidgetRef ref, String postId) {
+    // ✅ Track comment panel open as a comment signal
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId != null) {
+      ref.read(contentEventTrackerProvider).trackComment(
+        userId: userId,
+        contentType: 'post',
+        contentIdInt: int.tryParse(postId),
+      );
+    }
+
     final postFeedState = ref.read(postFeedProvider);
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -479,18 +605,31 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
       builder: (context) => UnifiedCommentsBottomSheet(
         contentId: postId,
         title: 'Comments',
-        commentCount: null, // Will be shown from loaded comments
+        commentCount: null,
         likingComments: postFeedState.likingComments,
         callbacks: CommentSheetCallbacks(
-          loadComments: () => ref.read(postFeedProvider.notifier).loadComments(postId),
-          loadReplies: (parentCommentId) => ref.read(postFeedProvider.notifier).loadReplies(postId, int.parse(parentCommentId)),
-          getRepliesCount: (parentCommentId) => ref.read(postFeedProvider.notifier).getRepliesCount(int.parse(parentCommentId)),
-          addComment: (content) => ref.read(postFeedProvider.notifier).addComment(postId, content),
-          addReply: (parentCommentId, content) => ref.read(postFeedProvider.notifier).addReply(postId, int.parse(parentCommentId), content),
-          toggleCommentLike: (commentId) => ref.read(postFeedProvider.notifier).toggleCommentLike(int.parse(commentId)),
-          getCurrentUserId: () => Supabase.instance.client.auth.currentUser?.id,
+          loadComments: () =>
+              ref.read(postFeedProvider.notifier).loadComments(postId),
+          loadReplies: (parentCommentId) => ref
+              .read(postFeedProvider.notifier)
+              .loadReplies(postId, int.parse(parentCommentId)),
+          getRepliesCount: (parentCommentId) => ref
+              .read(postFeedProvider.notifier)
+              .getRepliesCount(int.parse(parentCommentId)),
+          addComment: (content) => ref
+              .read(postFeedProvider.notifier)
+              .addComment(postId, content),
+          addReply: (parentCommentId, content) => ref
+              .read(postFeedProvider.notifier)
+              .addReply(postId, int.parse(parentCommentId), content),
+          toggleCommentLike: (commentId) => ref
+              .read(postFeedProvider.notifier)
+              .toggleCommentLike(int.parse(commentId)),
+          getCurrentUserId: () =>
+          Supabase.instance.client.auth.currentUser?.id,
           getUserProfile: () async {
-            final user = Supabase.instance.client.auth.currentUser;
+            final user =
+                Supabase.instance.client.auth.currentUser;
             if (user == null) return null;
             try {
               final response = await Supabase.instance.client
@@ -514,7 +653,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => PostCreateScreen(),
-        // TODO: Pass post data to edit mode when edit functionality is implemented
       ),
     );
   }
@@ -522,13 +660,15 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
   void _handleDelete(BuildContext context, WidgetRef ref) async {
     final feedState = ref.read(profileFeedProvider);
     final post = feedState.posts.firstWhere(
-      (p) => p.post_id == widget.post.post_id,
+          (p) => p.post_id == widget.post.post_id,
       orElse: () => widget.post,
     );
-    
+
     if (post.post_id == null) return;
 
-    final success = await ref.read(profileFeedProvider.notifier).deletePost(post.post_id!);
+    final success = await ref
+        .read(profileFeedProvider.notifier)
+        .deletePost(post.post_id!);
     if (context.mounted) {
       if (success) {
         Navigator.pop(context);
@@ -550,8 +690,6 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
   }
 
   void _handleToggleHide(BuildContext context, WidgetRef ref) {
-    // TODO: Implement hide/unhide functionality
-    // This requires adding is_hidden field to post table and updating providers
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Hide functionality coming soon'),
@@ -561,8 +699,7 @@ class _PostFullScreenState extends ConsumerState<PostFullScreen> {
   }
 
   void _handleShare(BuildContext context) {
-    // Share functionality - uses default from ContentActionMenu (copy link)
-    // Could be enhanced to use platform share dialog
+    // platform share — copy link via ContentActionMenu
   }
 
   String _formatTimestamp(DateTime? timestamp) {

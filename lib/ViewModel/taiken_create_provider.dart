@@ -1,14 +1,50 @@
+// =============================================================================
+// taiken_create_provider.dart  — FINAL
+//
+// Changes from previous version:
+//
+//   DATA CLASSES — new fields added to match Migration 5 columns:
+//     StageData
+//       + mood          (StageMood  — default neutral)
+//       + stageType     (StageType  — default mixed)
+//     DialogueData
+//       + emotion       (DialogueEmotion  — default neutral)
+//       + typewriterSpeed (TypewriterSpeed — default normal)
+//       + pauseAfterMs  (int — default 0)
+//     QuestionData
+//       + hasLearningGate    (bool — default false)
+//       + gateContentDomain  (String? — default null)
+//       + gateSkipDelaySeconds (int — default 5)
+//     CharacterData
+//       + portraitSide   (PortraitSide — default left)
+//       + isPlayer       (bool — default false)
+//     TaikenCreateState
+//       + seriesId       (String? — optional, links to taiken_series)
+//       + episodeNumber  (int?   — optional, 1-based)
+//       + passThreshold  (int    — default 50)
+//
+//   createTaiken() — all new columns now included in their respective inserts:
+//     taikens insert    : series_id, episode_number, pass_threshold
+//     taiken_stages     : background_image_url, mood, stage_type
+//     taiken_dialogues  : emotion, typewriter_speed, pause_after_ms
+//     taiken_questions  : has_learning_gate, gate_content_domain,
+//                         gate_skip_delay_seconds
+//     taiken_characters : portrait_side, is_player
+//
+//   All existing methods, signatures, and validation are preserved exactly.
+//   The provider declaration and constructor are unchanged.
+// =============================================================================
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../Model/taiken.dart';
-import 'plaro_points_service.dart'; // ✅ NEW
-import 'streak_provider.dart';      // ✅ NEW
+import 'streakandpoints_provider.dart';
 
 // =============================================================================
-// STATE + DATA CLASSES (unchanged from original)
+// DATA CLASSES
 // =============================================================================
 
 class TaikenCreateState {
@@ -27,6 +63,16 @@ class TaikenCreateState {
   final String? error;
   final String? successMessage;
 
+  // ── NEW fields ────────────────────────────────────────────────────────────
+  /// UUID of an existing taiken_series row. Null = standalone episode.
+  final String? seriesId;
+
+  /// Position within the series (1-based). Null = standalone.
+  final int? episodeNumber;
+
+  /// Minimum percentage correct to pass (0–100). Default 50.
+  final int passThreshold;
+
   TaikenCreateState({
     this.title = '',
     this.description = '',
@@ -42,6 +88,9 @@ class TaikenCreateState {
     this.isLoading = false,
     this.error,
     this.successMessage,
+    this.seriesId,
+    this.episodeNumber,
+    this.passThreshold = 50,
   });
 
   TaikenCreateState copyWith({
@@ -59,25 +108,33 @@ class TaikenCreateState {
     bool? isLoading,
     String? error,
     String? successMessage,
+    String? seriesId,
+    int? episodeNumber,
+    int? passThreshold,
   }) {
     return TaikenCreateState(
-      title: title ?? this.title,
-      description: description ?? this.description,
-      domain: domain ?? this.domain,
-      difficulty: difficulty ?? this.difficulty,
-      introScript: introScript ?? this.introScript,
-      outroSuccessScript: outroSuccessScript ?? this.outroSuccessScript,
-      outroFailureScript: outroFailureScript ?? this.outroFailureScript,
-      thumbnailFile: thumbnailFile ?? this.thumbnailFile,
-      totalStages: totalStages ?? this.totalStages,
-      stages: stages ?? this.stages,
-      characters: characters ?? this.characters,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      successMessage: successMessage,
+      title:               title               ?? this.title,
+      description:         description         ?? this.description,
+      domain:              domain              ?? this.domain,
+      difficulty:          difficulty          ?? this.difficulty,
+      introScript:         introScript         ?? this.introScript,
+      outroSuccessScript:  outroSuccessScript  ?? this.outroSuccessScript,
+      outroFailureScript:  outroFailureScript  ?? this.outroFailureScript,
+      thumbnailFile:       thumbnailFile       ?? this.thumbnailFile,
+      totalStages:         totalStages         ?? this.totalStages,
+      stages:              stages              ?? this.stages,
+      characters:          characters          ?? this.characters,
+      isLoading:           isLoading           ?? this.isLoading,
+      error:               error,
+      successMessage:      successMessage,
+      seriesId:            seriesId            ?? this.seriesId,
+      episodeNumber:       episodeNumber       ?? this.episodeNumber,
+      passThreshold:       passThreshold       ?? this.passThreshold,
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class StageData {
   final String tempId;
@@ -86,12 +143,18 @@ class StageData {
   final List<DialogueData> dialogues;
   final List<QuestionData> questions;
 
+  // ── NEW ───────────────────────────────────────────────────────────────────
+  final StageMood mood;
+  final StageType stageType;
+
   StageData({
     required this.tempId,
     required this.stageTitle,
     this.sceneImage,
     this.dialogues = const [],
     this.questions = const [],
+    this.mood      = StageMood.neutral,
+    this.stageType = StageType.mixed,
   });
 
   StageData copyWith({
@@ -99,39 +162,61 @@ class StageData {
     XFile? sceneImage,
     List<DialogueData>? dialogues,
     List<QuestionData>? questions,
+    StageMood? mood,
+    StageType? stageType,
   }) {
     return StageData(
-      tempId: tempId,
+      tempId:    tempId,
       stageTitle: stageTitle ?? this.stageTitle,
       sceneImage: sceneImage ?? this.sceneImage,
-      dialogues: dialogues ?? this.dialogues,
-      questions: questions ?? this.questions,
+      dialogues:  dialogues  ?? this.dialogues,
+      questions:  questions  ?? this.questions,
+      mood:       mood       ?? this.mood,
+      stageType:  stageType  ?? this.stageType,
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class DialogueData {
   final String tempId;
   final String? characterTempId;
   final String dialogueText;
 
+  // ── NEW ───────────────────────────────────────────────────────────────────
+  final DialogueEmotion emotion;
+  final TypewriterSpeed typewriterSpeed;
+  final int pauseAfterMs;
+
   DialogueData({
     required this.tempId,
     this.characterTempId,
     required this.dialogueText,
+    this.emotion        = DialogueEmotion.neutral,
+    this.typewriterSpeed = TypewriterSpeed.normal,
+    this.pauseAfterMs   = 0,
   });
 
   DialogueData copyWith({
     String? characterTempId,
     String? dialogueText,
+    DialogueEmotion? emotion,
+    TypewriterSpeed? typewriterSpeed,
+    int? pauseAfterMs,
   }) {
     return DialogueData(
-      tempId: tempId,
+      tempId:          tempId,
       characterTempId: characterTempId ?? this.characterTempId,
-      dialogueText: dialogueText ?? this.dialogueText,
+      dialogueText:    dialogueText    ?? this.dialogueText,
+      emotion:         emotion         ?? this.emotion,
+      typewriterSpeed: typewriterSpeed ?? this.typewriterSpeed,
+      pauseAfterMs:    pauseAfterMs    ?? this.pauseAfterMs,
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class QuestionData {
   final String tempId;
@@ -141,6 +226,11 @@ class QuestionData {
   final int correctOptionIndex;
   final String? explanation;
 
+  // ── NEW ───────────────────────────────────────────────────────────────────
+  final bool hasLearningGate;
+  final String? gateContentDomain;
+  final int gateSkipDelaySeconds;
+
   QuestionData({
     required this.tempId,
     required this.questionText,
@@ -148,6 +238,9 @@ class QuestionData {
     required this.options,
     required this.correctOptionIndex,
     this.explanation,
+    this.hasLearningGate      = false,
+    this.gateContentDomain,
+    this.gateSkipDelaySeconds = 5,
   });
 
   QuestionData copyWith({
@@ -156,17 +249,25 @@ class QuestionData {
     List<String>? options,
     int? correctOptionIndex,
     String? explanation,
+    bool? hasLearningGate,
+    String? gateContentDomain,
+    int? gateSkipDelaySeconds,
   }) {
     return QuestionData(
-      tempId: tempId,
-      questionText: questionText ?? this.questionText,
-      questionType: questionType ?? this.questionType,
-      options: options ?? this.options,
-      correctOptionIndex: correctOptionIndex ?? this.correctOptionIndex,
-      explanation: explanation ?? this.explanation,
+      tempId:               tempId,
+      questionText:         questionText         ?? this.questionText,
+      questionType:         questionType         ?? this.questionType,
+      options:              options              ?? this.options,
+      correctOptionIndex:   correctOptionIndex   ?? this.correctOptionIndex,
+      explanation:          explanation          ?? this.explanation,
+      hasLearningGate:      hasLearningGate      ?? this.hasLearningGate,
+      gateContentDomain:    gateContentDomain    ?? this.gateContentDomain,
+      gateSkipDelaySeconds: gateSkipDelaySeconds ?? this.gateSkipDelaySeconds,
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class CharacterData {
   final String tempId;
@@ -174,23 +275,33 @@ class CharacterData {
   final String? characterDescription;
   final XFile? characterImage;
 
+  // ── NEW ───────────────────────────────────────────────────────────────────
+  final PortraitSide portraitSide;
+  final bool isPlayer;
+
   CharacterData({
     required this.tempId,
     required this.characterName,
     this.characterDescription,
     this.characterImage,
+    this.portraitSide = PortraitSide.left,
+    this.isPlayer     = false,
   });
 
   CharacterData copyWith({
     String? characterName,
     String? characterDescription,
     XFile? characterImage,
+    PortraitSide? portraitSide,
+    bool? isPlayer,
   }) {
     return CharacterData(
-      tempId: tempId,
-      characterName: characterName ?? this.characterName,
+      tempId:               tempId,
+      characterName:        characterName        ?? this.characterName,
       characterDescription: characterDescription ?? this.characterDescription,
-      characterImage: characterImage ?? this.characterImage,
+      characterImage:       characterImage       ?? this.characterImage,
+      portraitSide:         portraitSide         ?? this.portraitSide,
+      isPlayer:             isPlayer             ?? this.isPlayer,
     );
   }
 }
@@ -200,53 +311,46 @@ class CharacterData {
 // =============================================================================
 
 class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
-  // ✅ UPDATED: accepts PlaroPointsService and Ref
   TaikenCreateNotifier(this._pointsService, this._ref)
       : super(TaikenCreateState()) {
     _initializeStages();
   }
 
   final SupabaseClient _supabase = Supabase.instance.client;
-  final ImagePicker _imagePicker = ImagePicker();
-  final Uuid _uuid = const Uuid();
-  final PlaroPointsService _pointsService; // ✅ NEW
-  final Ref _ref;                          // ✅ NEW
+  final ImagePicker    _imagePicker = ImagePicker();
+  final Uuid           _uuid = const Uuid();
+  final PlaroPointsService _pointsService;
+  final Ref _ref;
 
-  // ---------------------------------------------------------------------------
-  // Stage initialisation (unchanged)
-  // ---------------------------------------------------------------------------
+  // ── Stage initialisation ───────────────────────────────────────────────────
 
   void _initializeStages() {
     state = state.copyWith(
       stages: List.generate(
         state.totalStages,
-            (index) => StageData(
-          tempId: _uuid.v4(),
-          stageTitle: 'Stage ${index + 1}',
-        ),
+            (i) => StageData(tempId: _uuid.v4(), stageTitle: 'Stage ${i + 1}'),
       ),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Field updaters (unchanged)
-  // ---------------------------------------------------------------------------
+  // ── Field updaters (unchanged) ─────────────────────────────────────────────
 
-  void updateTitle(String title)                     => state = state.copyWith(title: title);
-  void updateDescription(String description)         => state = state.copyWith(description: description);
-  void updateDomain(String domain)                   => state = state.copyWith(domain: domain);
-  void updateDifficulty(String difficulty)           => state = state.copyWith(difficulty: difficulty);
-  void updateIntroScript(String script)              => state = state.copyWith(introScript: script);
-  void updateOutroSuccessScript(String script)       => state = state.copyWith(outroSuccessScript: script);
-  void updateOutroFailureScript(String script)       => state = state.copyWith(outroFailureScript: script);
+  void updateTitle(String v)              => state = state.copyWith(title: v);
+  void updateDescription(String v)        => state = state.copyWith(description: v);
+  void updateDomain(String v)             => state = state.copyWith(domain: v);
+  void updateDifficulty(String v)         => state = state.copyWith(difficulty: v);
+  void updateIntroScript(String v)        => state = state.copyWith(introScript: v);
+  void updateOutroSuccessScript(String v) => state = state.copyWith(outroSuccessScript: v);
+  void updateOutroFailureScript(String v) => state = state.copyWith(outroFailureScript: v);
+  void updatePassThreshold(int v)         => state = state.copyWith(passThreshold: v);
+  void updateSeriesId(String? v)          => state = state.copyWith(seriesId: v);
+  void updateEpisodeNumber(int? v)        => state = state.copyWith(episodeNumber: v);
 
   Future<void> pickThumbnail() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (image != null) state = state.copyWith(thumbnailFile: image);
+      final img = await _imagePicker.pickImage(
+          source: ImageSource.gallery, imageQuality: 80);
+      if (img != null) state = state.copyWith(thumbnailFile: img);
     } catch (e) {
       state = state.copyWith(error: 'Failed to pick thumbnail: $e');
     }
@@ -254,35 +358,30 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
 
   void setTotalStages(int count) {
     if (count < 1) return;
-    final currentStages = List<StageData>.from(state.stages);
-    if (count > currentStages.length) {
-      for (int i = currentStages.length; i < count; i++) {
-        currentStages.add(StageData(
-          tempId: _uuid.v4(),
-          stageTitle: 'Stage ${i + 1}',
-        ));
+    final stages = List<StageData>.from(state.stages);
+    if (count > stages.length) {
+      for (int i = stages.length; i < count; i++) {
+        stages.add(StageData(tempId: _uuid.v4(), stageTitle: 'Stage ${i + 1}'));
       }
     } else {
-      currentStages.removeRange(count, currentStages.length);
+      stages.removeRange(count, stages.length);
     }
-    state = state.copyWith(totalStages: count, stages: currentStages);
+    state = state.copyWith(totalStages: count, stages: stages);
   }
 
-  void updateStage(int index, StageData updatedStage) {
+  void updateStage(int index, StageData updated) {
     final stages = List<StageData>.from(state.stages);
-    stages[index] = updatedStage;
+    stages[index] = updated;
     state = state.copyWith(stages: stages);
   }
 
   Future<void> pickSceneImage(int stageIndex) async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (image != null) {
+      final img = await _imagePicker.pickImage(
+          source: ImageSource.gallery, imageQuality: 80);
+      if (img != null) {
         final stages = List<StageData>.from(state.stages);
-        stages[stageIndex] = stages[stageIndex].copyWith(sceneImage: image);
+        stages[stageIndex] = stages[stageIndex].copyWith(sceneImage: img);
         state = state.copyWith(stages: stages);
       }
     } catch (e) {
@@ -291,144 +390,135 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
   }
 
   void addDialogue(int stageIndex) {
-    final stages = List<StageData>.from(state.stages);
+    final stages   = List<StageData>.from(state.stages);
     final dialogues = List<DialogueData>.from(stages[stageIndex].dialogues);
     dialogues.add(DialogueData(tempId: _uuid.v4(), dialogueText: ''));
     stages[stageIndex] = stages[stageIndex].copyWith(dialogues: dialogues);
     state = state.copyWith(stages: stages);
   }
 
-  void updateDialogue(int stageIndex, int dialogueIndex, DialogueData updated) {
-    final stages = List<StageData>.from(state.stages);
-    final dialogues = List<DialogueData>.from(stages[stageIndex].dialogues);
-    dialogues[dialogueIndex] = updated;
-    stages[stageIndex] = stages[stageIndex].copyWith(dialogues: dialogues);
+  void updateDialogue(int si, int di, DialogueData updated) {
+    final stages   = List<StageData>.from(state.stages);
+    final dialogues = List<DialogueData>.from(stages[si].dialogues);
+    dialogues[di] = updated;
+    stages[si] = stages[si].copyWith(dialogues: dialogues);
     state = state.copyWith(stages: stages);
   }
 
-  void removeDialogue(int stageIndex, int dialogueIndex) {
-    final stages = List<StageData>.from(state.stages);
-    final dialogues = List<DialogueData>.from(stages[stageIndex].dialogues);
-    dialogues.removeAt(dialogueIndex);
-    stages[stageIndex] = stages[stageIndex].copyWith(dialogues: dialogues);
+  void removeDialogue(int si, int di) {
+    final stages   = List<StageData>.from(state.stages);
+    final dialogues = List<DialogueData>.from(stages[si].dialogues);
+    dialogues.removeAt(di);
+    stages[si] = stages[si].copyWith(dialogues: dialogues);
     state = state.copyWith(stages: stages);
   }
 
   void addQuestion(int stageIndex) {
-    final stages = List<StageData>.from(state.stages);
+    final stages    = List<StageData>.from(state.stages);
     final questions = List<QuestionData>.from(stages[stageIndex].questions);
     questions.add(QuestionData(
-      tempId: _uuid.v4(),
-      questionText: '',
-      questionType: 'multiple_choice',
-      options: ['', '', '', ''],
+      tempId:           _uuid.v4(),
+      questionText:     '',
+      questionType:     'multiple_choice',
+      options:          ['', '', '', ''],
       correctOptionIndex: 0,
     ));
     stages[stageIndex] = stages[stageIndex].copyWith(questions: questions);
     state = state.copyWith(stages: stages);
   }
 
-  void updateQuestion(int stageIndex, int questionIndex, QuestionData updated) {
-    final stages = List<StageData>.from(state.stages);
-    final questions = List<QuestionData>.from(stages[stageIndex].questions);
-    questions[questionIndex] = updated;
-    stages[stageIndex] = stages[stageIndex].copyWith(questions: questions);
+  void updateQuestion(int si, int qi, QuestionData updated) {
+    final stages    = List<StageData>.from(state.stages);
+    final questions = List<QuestionData>.from(stages[si].questions);
+    questions[qi] = updated;
+    stages[si] = stages[si].copyWith(questions: questions);
     state = state.copyWith(stages: stages);
   }
 
-  void removeQuestion(int stageIndex, int questionIndex) {
-    final stages = List<StageData>.from(state.stages);
-    final questions = List<QuestionData>.from(stages[stageIndex].questions);
-    questions.removeAt(questionIndex);
-    stages[stageIndex] = stages[stageIndex].copyWith(questions: questions);
+  void removeQuestion(int si, int qi) {
+    final stages    = List<StageData>.from(state.stages);
+    final questions = List<QuestionData>.from(stages[si].questions);
+    questions.removeAt(qi);
+    stages[si] = stages[si].copyWith(questions: questions);
     state = state.copyWith(stages: stages);
   }
 
   void addCharacter() {
-    final characters = List<CharacterData>.from(state.characters);
-    characters.add(CharacterData(
-      tempId: _uuid.v4(),
-      characterName: 'Character ${characters.length + 1}',
+    final chars = List<CharacterData>.from(state.characters);
+    // Alternate sides: even index → left, odd → right.
+    final side = chars.length.isEven ? PortraitSide.left : PortraitSide.right;
+    chars.add(CharacterData(
+      tempId:        _uuid.v4(),
+      characterName: 'Character ${chars.length + 1}',
+      portraitSide:  side,
     ));
-    state = state.copyWith(characters: characters);
+    state = state.copyWith(characters: chars);
   }
 
-  void updateCharacter(int index, CharacterData updatedCharacter) {
-    final characters = List<CharacterData>.from(state.characters);
-    characters[index] = updatedCharacter;
-    state = state.copyWith(characters: characters);
+  void updateCharacter(int index, CharacterData updated) {
+    final chars = List<CharacterData>.from(state.characters);
+    chars[index] = updated;
+    state = state.copyWith(characters: chars);
   }
 
   void removeCharacter(int index) {
-    final characters = List<CharacterData>.from(state.characters);
-    final removedTempId = characters[index].tempId;
-    characters.removeAt(index);
-    // Clear references in dialogues
+    final chars   = List<CharacterData>.from(state.characters);
+    final removed = chars[index].tempId;
+    chars.removeAt(index);
+
+    // Clear references in dialogues.
     final stages = List<StageData>.from(state.stages);
     for (int i = 0; i < stages.length; i++) {
       final dialogues = List<DialogueData>.from(stages[i].dialogues);
       for (int j = 0; j < dialogues.length; j++) {
-        if (dialogues[j].characterTempId == removedTempId) {
+        if (dialogues[j].characterTempId == removed) {
           dialogues[j] = dialogues[j].copyWith(characterTempId: null);
         }
       }
       stages[i] = stages[i].copyWith(dialogues: dialogues);
     }
-    state = state.copyWith(characters: characters, stages: stages);
+    state = state.copyWith(characters: chars, stages: stages);
   }
 
   Future<void> pickCharacterImage(int index) async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (image != null) {
-        final characters = List<CharacterData>.from(state.characters);
-        characters[index] = characters[index].copyWith(characterImage: image);
-        state = state.copyWith(characters: characters);
+      final img = await _imagePicker.pickImage(
+          source: ImageSource.gallery, imageQuality: 80);
+      if (img != null) {
+        final chars = List<CharacterData>.from(state.characters);
+        chars[index] = chars[index].copyWith(characterImage: img);
+        state = state.copyWith(characters: chars);
       }
     } catch (e) {
       state = state.copyWith(error: 'Failed to pick character image: $e');
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Image upload helper (unchanged)
-  // ---------------------------------------------------------------------------
+  // ── Image upload helper (unchanged) ───────────────────────────────────────
 
   Future<String?> _uploadImage(
-      XFile file, String bucketName, String userId) async {
-    try {
-      final bytes = await file.readAsBytes();
-      final fileExtension = file.path.split('.').last.toLowerCase();
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4().substring(0, 8)}.$fileExtension';
-      final filePath = '$userId/$fileName';
-      await _supabase.storage.from(bucketName).uploadBinary(
-        filePath,
-        bytes,
-        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-      );
-      return _supabase.storage.from(bucketName).getPublicUrl(filePath);
-    } catch (e) {
-      throw Exception('Failed to upload image: $e');
-    }
+      XFile file, String bucket, String userId) async {
+    final bytes     = await file.readAsBytes();
+    final ext       = file.path.split('.').last.toLowerCase();
+    final fileName  = '${DateTime.now().millisecondsSinceEpoch}_'
+        '${_uuid.v4().substring(0, 8)}.$ext';
+    final filePath  = '$userId/$fileName';
+    await _supabase.storage.from(bucket).uploadBinary(
+      filePath, bytes,
+      fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+    );
+    return _supabase.storage.from(bucket).getPublicUrl(filePath);
   }
 
-  // ---------------------------------------------------------------------------
-  // createTaiken — main publish method
-  // ✅ UPDATED: awards Plaro points + logs streak event after success
-  // ---------------------------------------------------------------------------
+  // ── createTaiken — main publish ────────────────────────────────────────────
 
   Future<bool> createTaiken() async {
-    final currentUserId = _supabase.auth.currentUser?.id;
-    if (currentUserId == null) {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
       state = state.copyWith(error: 'User not authenticated');
       return false;
     }
 
-    // Validation
     if (state.title.isEmpty) {
       state = state.copyWith(error: 'Please enter a title');
       return false;
@@ -456,142 +546,144 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
       String? thumbnailUrl;
       if (state.thumbnailFile != null) {
         thumbnailUrl = await _uploadImage(
-            state.thumbnailFile!, 'taiken-thumbnails', currentUserId);
+            state.thumbnailFile!, 'taiken-thumbnails', userId);
       }
 
-      // Total questions count
       final totalQuestions =
       state.stages.fold<int>(0, (sum, s) => sum + s.questions.length);
-
-      // Insert taiken row
       final taikenId = _uuid.v4();
+      final now      = DateTime.now().toIso8601String();
+
+      // ── Insert taiken row ─────────────────────────────────────────────────
       await _supabase.from('taikens').insert({
-        'taiken_id': taikenId,
-        'creator_id': currentUserId,
-        'title': state.title,
-        'description': state.description,
-        'domain': state.domain,
-        'difficulty': state.difficulty,
-        'intro_script': state.introScript,
+        'taiken_id':            taikenId,
+        'creator_id':           userId,
+        'title':                state.title,
+        'description':          state.description,
+        'domain':               state.domain,
+        'difficulty':           state.difficulty,
+        'intro_script':         state.introScript,
         'outro_success_script': state.outroSuccessScript,
         'outro_failure_script': state.outroFailureScript,
-        'thumbnail_url': thumbnailUrl,
-        'total_stages': state.totalStages,
-        'total_questions': totalQuestions,
-        'is_published': true,
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+        'thumbnail_url':        thumbnailUrl,
+        'total_stages':         state.totalStages,
+        'total_questions':      totalQuestions,
+        'pass_threshold':       state.passThreshold,   // ★ NEW
+        'is_published':         true,
+        'created_at':           now,
+        'updated_at':           now,
+        // ★ NEW — series fields (null-safe, ignored by DB if null)
+        if (state.seriesId     != null) 'series_id':      state.seriesId,
+        if (state.episodeNumber != null) 'episode_number': state.episodeNumber,
       });
 
-      // Insert characters
-      final Map<String, String> characterIdMap = {};
+      // ── Insert characters ─────────────────────────────────────────────────
+      final Map<String, String> charIdMap = {};
       for (int i = 0; i < state.characters.length; i++) {
-        final character = state.characters[i];
-        String? characterImageUrl;
-        if (character.characterImage != null) {
-          characterImageUrl = await _uploadImage(
-              character.characterImage!, 'taiken-characters', currentUserId);
+        final c   = state.characters[i];
+        final cId = _uuid.v4();
+        charIdMap[c.tempId] = cId;
+
+        String? imgUrl;
+        if (c.characterImage != null) {
+          imgUrl = await _uploadImage(
+              c.characterImage!, 'taiken-characters', userId);
         }
-        final characterId = _uuid.v4();
-        characterIdMap[character.tempId] = characterId;
+
         await _supabase.from('taiken_characters').insert({
-          'character_id': characterId,
-          'taiken_id': taikenId,
-          'character_name': character.characterName,
-          'character_image_url': characterImageUrl,
-          'character_description': character.characterDescription,
-          'display_order': i,
-          'created_at': DateTime.now().toIso8601String(),
+          'character_id':          cId,
+          'taiken_id':             taikenId,
+          'character_name':        c.characterName,
+          'character_image_url':   imgUrl,
+          'character_description': c.characterDescription,
+          'display_order':         i,
+          'portrait_side':         c.portraitSide.name, // ★ NEW
+          'is_player':             c.isPlayer,           // ★ NEW
+          'created_at':            now,
         });
       }
 
-      // Insert stages, dialogues, questions
-      for (int stageIndex = 0;
-      stageIndex < state.stages.length;
-      stageIndex++) {
-        final stage = state.stages[stageIndex];
-        String? sceneImageUrl;
-        if (stage.sceneImage != null) {
-          sceneImageUrl = await _uploadImage(
-              stage.sceneImage!, 'taiken-scenes', currentUserId);
-        }
+      // ── Insert stages ─────────────────────────────────────────────────────
+      for (int si = 0; si < state.stages.length; si++) {
+        final stage   = state.stages[si];
         final stageId = _uuid.v4();
+
+        String? sceneUrl;
+        if (stage.sceneImage != null) {
+          sceneUrl = await _uploadImage(
+              stage.sceneImage!, 'taiken-scenes', userId);
+        }
+
         await _supabase.from('taiken_stages').insert({
-          'stage_id': stageId,
-          'taiken_id': taikenId,
-          'stage_order': stageIndex + 1,
-          'stage_title': stage.stageTitle,
-          'scene_image_url': sceneImageUrl,
-          'created_at': DateTime.now().toIso8601String(),
+          'stage_id':             stageId,
+          'taiken_id':            taikenId,
+          'stage_order':          si + 1,
+          'stage_title':          stage.stageTitle,
+          'scene_image_url':      sceneUrl,
+          'background_image_url': sceneUrl,         // ★ NEW (same image)
+          'mood':                 stage.mood.name,  // ★ NEW
+          'stage_type':           stage.stageType.name, // ★ NEW
+          'created_at':           now,
         });
 
+        // ── Insert dialogues ────────────────────────────────────────────────
         for (int di = 0; di < stage.dialogues.length; di++) {
-          final dialogue = stage.dialogues[di];
+          final d = stage.dialogues[di];
           await _supabase.from('taiken_dialogues').insert({
-            'dialogue_id': _uuid.v4(),
-            'stage_id': stageId,
-            'character_id': dialogue.characterTempId != null
-                ? characterIdMap[dialogue.characterTempId]
+            'dialogue_id':     _uuid.v4(),
+            'stage_id':        stageId,
+            'character_id':    d.characterTempId != null
+                ? charIdMap[d.characterTempId]
                 : null,
-            'dialogue_text': dialogue.dialogueText,
-            'dialogue_order': di,
-            'created_at': DateTime.now().toIso8601String(),
+            'dialogue_text':   d.dialogueText,
+            'dialogue_order':  di,
+            'emotion':         d.emotion.name,          // ★ NEW
+            'typewriter_speed': d.typewriterSpeed.name,  // ★ NEW
+            'pause_after_ms':  d.pauseAfterMs,           // ★ NEW
+            'created_at':      now,
           });
         }
 
+        // ── Insert questions ────────────────────────────────────────────────
         for (int qi = 0; qi < stage.questions.length; qi++) {
-          final question = stage.questions[qi];
+          final q = stage.questions[qi];
           await _supabase.from('taiken_questions').insert({
-            'question_id': _uuid.v4(),
-            'stage_id': stageId,
-            'question_text': question.questionText,
-            'question_type': question.questionType,
-            'options': question.options,
-            'correct_option_index': question.correctOptionIndex,
-            'explanation': question.explanation,
-            'question_order': qi,
-            'created_at': DateTime.now().toIso8601String(),
+            'question_id':           _uuid.v4(),
+            'stage_id':              stageId,
+            'question_text':         q.questionText,
+            'question_type':         q.questionType,
+            'options':               q.options,
+            'correct_option_index':  q.correctOptionIndex,
+            'explanation':           q.explanation,
+            'question_order':        qi,
+            'has_learning_gate':     q.hasLearningGate,       // ★ NEW
+            'gate_content_domain':   q.gateContentDomain,     // ★ NEW
+            'gate_skip_delay_seconds': q.gateSkipDelaySeconds, // ★ NEW
+            'created_at':            now,
           });
         }
       }
 
-      // ── Award Plaro content-creation points ──────────────────────────────
-      // Taiken creation = 10 pts (see plaro_points_service.dart pointsMap).
+      // ── Award Plaro points ─────────────────────────────────────────────────
       try {
         await _pointsService.awardPointsForContent(
-          userId: currentUserId,
+          userId:      userId,
           contentType: 'taiken',
-          contentId: taikenId,
+          contentId:   taikenId,
         );
-        debugPrint('✅ Plaro points awarded for taiken $taikenId');
-      } catch (pointsError) {
-        // Non-fatal — never block publish on points failure
-        debugPrint('❌ Failed to award Plaro points: $pointsError');
+        debugPrint('[Points] awarded for taiken $taikenId');
+      } catch (e) {
+        debugPrint('[Points] non-fatal error: $e');
       }
 
-      // ── Log streak event (creator published educational content) ─────────
-      // Taiken creation does NOT itself count as a streak event in the current
-      // SQL trigger (which only matches 'post' and 'byte' creates, and
-      // 'taiken_stage' completes).  If you later decide taiken creation should
-      // extend the streak, add 'taiken' to the trigger's IN clause and
-      // uncomment the call below.
-      //
-      // _ref.read(streakProvider.notifier).logPostCreated(
-      //   postId: 0, // taiken uses a uuid — adapt StreakService if needed
-      //   domain: state.domain,
-      // );
-
       state = state.copyWith(
-        isLoading: false,
+        isLoading:      false,
         successMessage: 'Taiken created successfully!',
       );
       return true;
     } catch (e) {
-      debugPrint('❌ createTaiken error: $e');
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to create Taiken: $e',
-      );
+      debugPrint('[createTaiken] error: $e');
+      state = state.copyWith(isLoading: false, error: 'Failed to create Taiken: $e');
       return false;
     }
   }
@@ -606,7 +698,6 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
 
 // =============================================================================
 // PROVIDER
-// ✅ UPDATED: passes PlaroPointsService and Ref into the notifier
 // =============================================================================
 
 final taikenCreateProvider =

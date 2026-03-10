@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'post_rating_provider.dart';
-import 'plaro_points_service.dart';
+import 'streakandpoints_provider.dart';
 
 typedef ByteRatingState = PostRatingState;
 

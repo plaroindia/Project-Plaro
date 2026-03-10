@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
@@ -5,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../Model/byte.dart';
 import '../ViewModel/byte_provider.dart';
 import '../ViewModel/auth_provider.dart';
+import '../ViewModel/content_event_tracker.dart'; // ✅ ADDED
 import 'widgets/byte_comments.dart';
 import 'widgets/double_tap_like.dart';
 import 'byte_page.dart';
@@ -23,18 +25,32 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
   int _currentIndex = 0;
   final Map<int, VideoPlayerController> _controllers = {};
 
+  // ── Dwell tracking ───────────────────────────────────────
+  DateTime? _pageEnteredAt;
+
+  // ── Preload timer: delays next-video init until current is playing ─────────
+  // Prevents simultaneous HEVC decoder initialisation on MediaTek chips,
+  // which exhausts ImageReader buffer slots ("Unable to acquire a buffer item").
+  Timer? _preloadTimer;
+
   @override
   void initState() {
     super.initState();
     _currentIndex = 0;
     _pageController = PageController(initialPage: 0);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(bytesFeedProvider.notifier).loadBytes();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(bytesFeedProvider.notifier).loadBytes();
+      _recordPageEntry();
+      // Initialize the first video immediately after load.
+      // PageView's itemBuilder will have called _getController(0) by now.
+      if (mounted) _initController(0);
     });
   }
 
   @override
   void dispose() {
+    _preloadTimer?.cancel();
+    _flushDwell(_currentIndex); // flush on exit
     _pageController.dispose();
     _disposeAllControllers();
     super.dispose();
@@ -47,32 +63,109 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
     _controllers.clear();
   }
 
+  // ── Dwell helpers ────────────────────────────────────────
+
+  void _recordPageEntry() {
+    _pageEnteredAt = DateTime.now();
+  }
+
+  void _flushDwell(int index) {
+    if (_pageEnteredAt == null) return;
+    final dwellSeconds =
+        DateTime.now().difference(_pageEnteredAt!).inSeconds;
+    if (dwellSeconds < 1) return; // skip trivial swipes
+
+    final bytesState = ref.read(bytesFeedProvider);
+    if (index >= bytesState.bytes.length) return;
+    final byte = bytesState.bytes[index];
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+
+    ref.read(contentEventTrackerProvider).trackDwell(
+      userId: userId,
+      contentType: 'byte',
+      contentIdInt: int.tryParse(byte.byteId),
+      dwellTimeSeconds: dwellSeconds,
+    );
+  }
+
+  // ── Video management ─────────────────────────────────────
+
+  /// Returns (or creates) a controller for [index].
+  /// IMPORTANT: Does NOT call .initialize() here.
+  /// Initialization is driven by [_initController] which is called
+  /// only when the page is actually current, or via [_schedulePreload]
+  /// after the current video has started playing.
   VideoPlayerController _getController(int index, String videoUrl) {
     if (!_controllers.containsKey(index)) {
-      debugPrint('🎥 Creating controller for index $index: $videoUrl');
-
+      debugPrint('🎥 Creating controller for index $index (not yet init)');
       final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
       _controllers[index] = controller;
-
-      controller.initialize().then((_) {
-        if (!mounted) return;
-
-        debugPrint('✅ Video initialized for index $index');
-        setState(() {});
-
-        if (index == _currentIndex) {
-          controller.play();
-          controller.setLooping(true);
-        }
-      }).catchError((error) {
-        debugPrint('❌ Error initializing video: $error');
-      });
+      // Do NOT initialize here — let _initController handle it sequentially.
     }
     return _controllers[index]!;
   }
 
+  /// Actually initializes the controller for [index] and plays if current.
+  /// All initialization goes through here so only one decoder spins up
+  /// at a time on the MediaTek hardware.
+  Future<void> _initController(int index) async {
+    final controller = _controllers[index];
+    if (controller == null) return;
+    if (controller.value.isInitialized) {
+      // Already ready — just play if it's the current page.
+      if (index == _currentIndex && !controller.value.isPlaying) {
+        controller.play();
+        controller.setLooping(true);
+      }
+      return;
+    }
+
+    debugPrint('🎥 Initializing controller for index $index');
+    try {
+      await controller.initialize();
+      if (!mounted) return;
+      setState(() {});
+      if (index == _currentIndex) {
+        controller.play();
+        controller.setLooping(true);
+        debugPrint('▶️ Playing video at index $index');
+        // After current video has started, pre-init the next one
+        // with a 500ms delay so the two decoders don't race.
+        _schedulePreload(index + 1);
+      }
+    } catch (e) {
+      debugPrint('❌ Error initializing video at $index: $e');
+    }
+  }
+
+  /// Schedules initialization of [nextIndex] after a short delay.
+  /// The delay lets the current decoder finish its buffer setup before
+  /// the next one starts competing for ImageReader slots.
+  void _schedulePreload(int nextIndex) {
+    _preloadTimer?.cancel();
+    final bytes = ref.read(bytesFeedProvider).bytes;
+    if (nextIndex >= bytes.length) return;
+    if (_controllers[nextIndex]?.value.isInitialized == true) return;
+
+    _preloadTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      final bytes2 = ref.read(bytesFeedProvider).bytes;
+      if (nextIndex < bytes2.length &&
+          _controllers.containsKey(nextIndex) &&
+          !(_controllers[nextIndex]?.value.isInitialized ?? false)) {
+        debugPrint('⏩ Pre-loading controller for index $nextIndex');
+        _initController(nextIndex);
+      }
+    });
+  }
+
   void _onPageChanged(int index) {
     debugPrint('🔄 Page changed from $_currentIndex to $index');
+
+    // ── Flush dwell for the page we're leaving ────────────
+    _flushDwell(_currentIndex);
 
     // Pause and reset previous video
     if (_controllers.containsKey(_currentIndex)) {
@@ -88,24 +181,32 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
       _currentIndex = index;
     });
 
-    // Play new video if initialized
-    if (_controllers.containsKey(index)) {
-      final newController = _controllers[index]!;
-      if (newController.value.isInitialized) {
-        newController.seekTo(Duration.zero);
-        newController.play();
-        newController.setLooping(true);
-        debugPrint('▶️ Playing video at index $index');
-      } else {
-        debugPrint('⏳ Video at index $index not yet initialized');
-      }
-    } else {
-      debugPrint('❓ No controller found for index $index');
+    // ── Track view for the new page ───────────────────────
+    final bytesState = ref.read(bytesFeedProvider);
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId != null && index < bytesState.bytes.length) {
+      final byte = bytesState.bytes[index];
+      ref.read(contentEventTrackerProvider).trackView(
+        userId: userId,
+        contentType: 'byte',
+        contentIdInt: int.tryParse(byte.byteId),
+        source: 'feed',
+      );
     }
 
+    // ── Start dwell timer for new page ───────────────────
+    _recordPageEntry();
+
+    // Initialize (or resume) the video for the new page sequentially.
+    // _initController handles the "already initialized" fast-path and
+    // schedules the next preload only after the current decoder is running.
+    _initController(index);
+
     // Load more bytes when approaching the end
-    final bytesState = ref.read(bytesFeedProvider);
-    if (index >= bytesState.bytes.length - 3 && bytesState.hasMore && !bytesState.isLoadingMore) {
+    if (index >= bytesState.bytes.length - 3 &&
+        bytesState.hasMore &&
+        !bytesState.isLoadingMore) {
       ref.read(bytesFeedProvider.notifier).loadMoreBytes();
     }
   }
@@ -122,6 +223,29 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
           debugPrint('▶️ Manually playing video at index $index');
         }
       });
+    }
+  }
+
+  // ── Like handler with event tracking ─────────────────────
+
+  Future<void> _handleLike(Byte byte) async {
+    await ref.read(bytesFeedProvider.notifier).toggleLike(byte.byteId);
+
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+
+    // Only track the "like" signal (not unlike — the tracker doesn't
+    // have an unlike event type; the engagement weight stays positive)
+    final current = ref.read(bytesFeedProvider).bytes
+        .firstWhere((b) => b.byteId == byte.byteId,
+        orElse: () => byte);
+    if (current.isliked == true) {
+      ref.read(contentEventTrackerProvider).trackLike(
+        userId: userId,
+        contentType: 'byte',
+        contentIdInt: int.tryParse(byte.byteId),
+      );
     }
   }
 
@@ -167,7 +291,8 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => ByteCreateScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => ByteCreateScreen()),
                 );
               },
               icon: const Icon(Icons.add),
@@ -187,21 +312,25 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
             if (bytesState.error != null) ...[
               const SizedBox(height: 24),
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 32),
+                margin:
+                const EdgeInsets.symmetric(horizontal: 32),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(
+                      color: Colors.red.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        color: Colors.red),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         bytesState.error!,
-                        style: const TextStyle(color: Colors.red),
+                        style:
+                        const TextStyle(color: Colors.red),
                       ),
                     ),
                   ],
@@ -210,7 +339,9 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () {
-                  ref.read(bytesFeedProvider.notifier).refreshBytes();
+                  ref
+                      .read(bytesFeedProvider.notifier)
+                      .refreshBytes();
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
@@ -231,16 +362,17 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
             itemCount: bytesState.bytes.length,
             itemBuilder: (context, index) {
               final byte = bytesState.bytes[index];
-              debugPrint('🗃️ Building page for index $index: ${byte.byteId}');
+              debugPrint(
+                  '🗃️ Building page for index $index: ${byte.byteId}');
 
               return ByteVideoPlayer(
                 byte: byte,
-                controller: _getController(index, byte.videoUrl),
+                controller:
+                _getController(index, byte.videoUrl),
                 isCurrentVideo: index == _currentIndex,
-                onTogglePlayPause: () => _togglePlayPause(index),
-                onLike: () async {
-                  await ref.read(bytesFeedProvider.notifier).toggleLike(byte.byteId);
-                },
+                onTogglePlayPause: () =>
+                    _togglePlayPause(index),
+                onLike: () => _handleLike(byte), // ✅ UPGRADED
                 onSwipeLeft: () => _showCommentsModal(byte),
                 onShare: () => _showShareModal(byte),
                 showSwipeIndicator: true,
@@ -250,15 +382,16 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
           // Loading more indicator
           if (bytesState.isLoadingMore)
             Positioned(
-              bottom: 20,
+              bottom: 16,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -267,14 +400,15 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
                           strokeWidth: 2,
+                          color: Colors.white,
                         ),
                       ),
-                      SizedBox(width: 12),
+                      SizedBox(width: 8),
                       Text(
                         'Loading more...',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(
+                            color: Colors.white, fontSize: 12),
                       ),
                     ],
                   ),
@@ -291,11 +425,22 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => ByteCommentsBottomSheet(byteId: byte.byteId),
+      builder: (context) =>
+          ByteCommentsBottomSheet(byteId: byte.byteId),
     );
   }
 
   void _showShareModal(Byte byte) {
+    final userId =
+        ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId != null) {
+      ref.read(contentEventTrackerProvider).trackShare(
+        userId: userId,
+        contentType: 'byte',
+        contentIdInt: int.tryParse(byte.byteId),
+      );
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[900],
@@ -306,6 +451,10 @@ class _ByteViewerPageState extends ConsumerState<ByteViewerPage> {
     );
   }
 }
+
+// ── ByteVideoPlayer (unchanged — all tracking is in the page widget) ─────────
+// Keeping original implementation below; only the onLike callback now carries
+// tracking logic from the caller.
 
 class ByteVideoPlayer extends ConsumerStatefulWidget {
   final Byte byte;
@@ -330,9 +479,9 @@ class ByteVideoPlayer extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<ByteVideoPlayer> createState() => _ByteVideoPlayerState();
+  ConsumerState<ByteVideoPlayer> createState() =>
+      _ByteVideoPlayerState();
 }
-
 
 class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
   @override
@@ -620,7 +769,6 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
     return count.toString();
   }
 }
-
 
 // ── Reusable right-side action item ──────────────────────────────────────────
 class _SideActionItem extends StatelessWidget {

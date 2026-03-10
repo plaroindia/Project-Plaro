@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import '../Model/post.dart';
-import 'plaro_points_service.dart';
-import 'streak_provider.dart'; // ✅ NEW
-
+import 'streakandpoints_provider.dart';
 // State class for post creation
 class PostCreateState {
   final bool isLoading;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
@@ -6,6 +7,7 @@ import '../Model/byte.dart';
 import '../ViewModel/user_feed_provider.dart';
 import '../ViewModel/auth_provider.dart';
 import '../ViewModel/byte_provider.dart';
+import '../ViewModel/content_event_tracker.dart' hide ContentType; // ✅ ADDED
 import 'widgets/double_tap_like.dart';
 import 'widgets/byte_comments.dart';
 import 'widgets/content_actions.dart';
@@ -32,18 +34,66 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
   int _currentIndex = 0;
   final Map<int, VideoPlayerController> _controllers = {};
 
+  // ── Dwell tracking ───────────────────────────────────────
+  DateTime? _pageEnteredAt;
+
+  // ── Sequential init timer (prevents simultaneous HEVC decoder racing) ──────
+  Timer? _preloadTimer;
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _trackView(widget.initialIndex); // ✅ track initial view
+      _recordPageEntry();
+      // PageView will have called _getController(initialIndex) by now.
+      _initController(widget.initialIndex);
+    });
   }
 
   @override
   void dispose() {
+    _preloadTimer?.cancel();
+    _flushDwell(_currentIndex); // ✅ flush on exit
     _pageController.dispose();
     _disposeAllControllers();
     super.dispose();
+  }
+
+  void _recordPageEntry() {
+    _pageEnteredAt = DateTime.now();
+  }
+
+  void _flushDwell(int index) {
+    final enteredAt = _pageEnteredAt;
+    if (enteredAt == null) return;
+    final dwellSeconds = DateTime.now().difference(enteredAt).inSeconds;
+    if (dwellSeconds < 1 || index >= widget.bytes.length) return;
+    final byte = widget.bytes[index];
+    final userId = ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+    ref.read(contentEventTrackerProvider).trackDwell(
+      userId: userId,
+      contentType: 'byte',
+      contentIdInt: int.tryParse(byte.byteId),
+      dwellTimeSeconds: dwellSeconds,
+    );
+    _pageEnteredAt = null;
+  }
+
+  void _trackView(int index) {
+    if (index >= widget.bytes.length) return;
+    final byte = widget.bytes[index];
+    final userId = ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId == null) return;
+    ref.read(contentEventTrackerProvider).trackView(
+      userId: userId,
+      contentType: 'byte',
+      contentIdInt: int.tryParse(byte.byteId),
+      source: 'profile',
+    );
   }
 
   void _disposeAllControllers() {
@@ -53,35 +103,70 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
     _controllers.clear();
   }
 
+  /// Creates controller but does NOT initialize — prevents simultaneous
+  /// HEVC decoder start-up that exhausts ImageReader buffer slots.
   VideoPlayerController _getController(int index, String videoUrl) {
     if (!_controllers.containsKey(index)) {
-      debugPrint('🎥 Creating controller for index $index: $videoUrl');
-
+      debugPrint('🎥 Creating controller for index $index (not yet init)');
       final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-
       _controllers[index] = controller;
-
-      controller.initialize().then((_) {
-        if (!mounted) return;
-
-        debugPrint('✅ Video initialized for index $index');
-        setState(() {});
-
-        if (index == _currentIndex) {
-          controller.play();
-          controller.setLooping(true);
-        }
-      }).catchError((error) {
-        debugPrint('❌ Error initializing video: $error');
-      });
+      // Initialization happens via _initController only.
     }
     return _controllers[index]!;
+  }
+
+  /// Initializes the controller for [index] and plays if it is current.
+  /// Only one decoder initializes at a time; the next is scheduled via
+  /// _schedulePreload after the current one has started playing.
+  Future<void> _initController(int index) async {
+    final controller = _controllers[index];
+    if (controller == null) return;
+    if (controller.value.isInitialized) {
+      if (index == _currentIndex && !controller.value.isPlaying) {
+        controller.play();
+        controller.setLooping(true);
+      }
+      return;
+    }
+    debugPrint('🎥 Initializing controller for index $index');
+    try {
+      await controller.initialize();
+      if (!mounted) return;
+      setState(() {});
+      if (index == _currentIndex) {
+        controller.play();
+        controller.setLooping(true);
+        debugPrint('▶️ Playing video at index $index');
+        _schedulePreload(index + 1);
+      }
+    } catch (e) {
+      debugPrint('❌ Error initializing video at $index: $e');
+    }
+  }
+
+  /// Waits 500 ms then initializes the next controller.
+  /// The delay lets the current MediaTek decoder finish claiming its
+  /// ImageReader buffers before the next one starts competing.
+  void _schedulePreload(int nextIndex) {
+    _preloadTimer?.cancel();
+    if (nextIndex >= widget.bytes.length) return;
+    if (_controllers[nextIndex]?.value.isInitialized == true) return;
+    _preloadTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      if (nextIndex < widget.bytes.length &&
+          _controllers.containsKey(nextIndex) &&
+          !(_controllers[nextIndex]?.value.isInitialized ?? false)) {
+        debugPrint('⏩ Pre-loading controller for index $nextIndex');
+        _initController(nextIndex);
+      }
+    });
   }
 
   void _onPageChanged(int index) {
     debugPrint('🔄 Page changed from $_currentIndex to $index');
 
-    // Pause and reset previous video
+    _flushDwell(_currentIndex); // ✅ flush dwell for previous
+
     if (_controllers.containsKey(_currentIndex)) {
       final prevController = _controllers[_currentIndex]!;
       if (prevController.value.isInitialized) {
@@ -95,20 +180,12 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
       _currentIndex = index;
     });
 
-    // Play new video if initialized
-    if (_controllers.containsKey(index)) {
-      final newController = _controllers[index]!;
-      if (newController.value.isInitialized) {
-        newController.seekTo(Duration.zero);
-        newController.play();
-        newController.setLooping(true);
-        debugPrint('▶️ Playing video at index $index');
-      } else {
-        debugPrint('⏳ Video at index $index not yet initialized');
-      }
-    } else {
-      debugPrint('❓ No controller found for index $index');
-    }
+    _trackView(index); // ✅ track view for new page
+    _recordPageEntry();
+
+    // Sequential init: _initController plays immediately if ready,
+    // or initializes first, then schedules the next preload.
+    _initController(index);
   }
 
   void _togglePlayPause(int index) {
@@ -135,19 +212,11 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.video_library_outlined,
-              color: Colors.grey[600],
-              size: 80,
-            ),
+            Icon(Icons.video_library_outlined, color: Colors.grey[600], size: 80),
             const SizedBox(height: 24),
             Text(
               'No bytes yet',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: Colors.grey[400], fontSize: 20, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -162,13 +231,23 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
             itemBuilder: (context, index) {
               final byte = widget.bytes[index];
               debugPrint('🏗️ Building page for index $index: ${byte.byteId}');
-
               return ByteVideoPlayer(
                 byte: byte,
                 controller: _getController(index, byte.videoUrl),
                 isCurrentVideo: index == _currentIndex,
                 onTogglePlayPause: () => _togglePlayPause(index),
                 onLike: () async {
+                  // ✅ track like gated on pre-toggle state
+                  final userId = ref.read(authStateProvider).valueOrNull?.user.id;
+                  final currentByte = ref.read(profileFeedProvider).bytes
+                      .firstWhere((b) => b.byteId == byte.byteId, orElse: () => byte);
+                  if (userId != null && !(currentByte.isliked ?? false)) {
+                    ref.read(contentEventTrackerProvider).trackLike(
+                      userId: userId,
+                      contentType: 'byte',
+                      contentIdInt: int.tryParse(byte.byteId),
+                    );
+                  }
                   await ref.read(profileFeedProvider.notifier).toggleByteLike(byte.byteId);
                 },
                 onSwipeLeft: () => _showCommentsModal(byte),
@@ -201,6 +280,15 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
   }
 
   void _showShareModal(Byte byte) {
+    // ✅ track share
+    final userId = ref.read(authStateProvider).valueOrNull?.user.id;
+    if (userId != null) {
+      ref.read(contentEventTrackerProvider).trackShare(
+        userId: userId,
+        contentType: 'byte',
+        contentIdInt: int.tryParse(byte.byteId),
+      );
+    }
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey[900],
@@ -238,7 +326,6 @@ class ByteVideoPlayer extends ConsumerStatefulWidget {
   ConsumerState<ByteVideoPlayer> createState() => _ByteVideoPlayerState();
 }
 
-
 class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
   @override
   Widget build(BuildContext context) {
@@ -263,7 +350,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // ── Video + double-tap like (fully preserved) ──────────────────────
+          // ── Video + double-tap like ────────────────────────────────────────
           ByteDoubleTapLike(
             byteId: currentByte.byteId,
             isliked: currentByte.isliked ?? false,
@@ -284,8 +371,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                   children: [
                     CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: 16),
-                    Text('Loading video…',
-                        style: TextStyle(color: Colors.white)),
+                    Text('Loading video…', style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -293,8 +379,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
           ),
 
           // ── Play/pause overlay ─────────────────────────────────────────────
-          if (widget.controller.value.isInitialized &&
-              !widget.controller.value.isPlaying)
+          if (widget.controller.value.isInitialized && !widget.controller.value.isPlaying)
             IgnorePointer(
               child: Center(
                 child: Container(
@@ -302,16 +387,14 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.45),
                     shape: BoxShape.circle,
-                    border: Border.all(
-                        color: Colors.white.withOpacity(0.3), width: 1.5),
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                   ),
-                  child: const Icon(Icons.play_arrow_rounded,
-                      color: Colors.white, size: 44),
+                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 44),
                 ),
               ),
             ),
 
-          // ── Deep bottom gradient ───────────────────────────────────────────
+          // ── Bottom gradient ────────────────────────────────────────────────
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: IgnorePointer(
@@ -321,12 +404,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Color(0x44000000),
-                      Color(0xCC000000),
-                      Colors.black,
-                    ],
+                    colors: [Colors.transparent, Color(0x44000000), Color(0xCC000000), Colors.black],
                     stops: [0.0, 0.35, 0.72, 1.0],
                   ),
                 ),
@@ -334,37 +412,28 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
             ),
           ),
 
-          // ── Right-side vertical action column ─────────────────────────────
+          // ── Right-side action column ───────────────────────────────────────
           Positioned(
             right: 12,
             bottom: 100,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Like (tap shortcut — double-tap on video still works)
                 GestureDetector(
                   onTap: widget.onLike,
                   child: _SideActionItem(
                     icon: currentByte.isliked == true
                         ? Icons.favorite_rounded
                         : Icons.favorite_outline_rounded,
-                    iconColor: currentByte.isliked == true
-                        ? Colors.redAccent
-                        : Colors.white,
+                    iconColor: currentByte.isliked == true ? Colors.redAccent : Colors.white,
                     label: _formatCount(currentByte.likeCount),
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Star rating → insights dialog
                 ByteStarRatingIcon(byteId: currentByte.byteId),
                 const SizedBox(height: 20),
-
-                // People → ranked-by dialog
                 ByteRankedByIcon(byteId: currentByte.byteId),
                 const SizedBox(height: 20),
-
-                // Share
                 GestureDetector(
                   onTap: widget.onShare,
                   child: const _SideActionItem(
@@ -388,7 +457,6 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
               children: [
                 Row(
                   children: [
-                    // Avatar with gradient ring
                     Container(
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
@@ -408,13 +476,9 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                         child: currentByte.profilePic == null
                             ? Text(
                           (currentByte.username?.isNotEmpty ?? false)
-                              ? currentByte.username!
-                              .substring(0, 1)
-                              .toUpperCase()
+                              ? currentByte.username!.substring(0, 1).toUpperCase()
                               : 'U',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         )
                             : null,
                       ),
@@ -424,9 +488,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                       child: Text(
                         '@${currentByte.username ?? "unknown"}',
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700,
                           shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -460,8 +522,6 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                       ),
                   ],
                 ),
-
-                // Caption
                 if (currentByte.caption != null && currentByte.caption!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -475,8 +535,6 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-
-                // Progress bar
                 if (widget.controller.value.isInitialized)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
@@ -498,7 +556,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
             ),
           ),
 
-          // ── Swipe-left comment hint (refined) ─────────────────────────────
+          // ── Swipe-left comment hint ────────────────────────────────────────
           if (widget.showSwipeIndicator)
             Positioned(
               left: 12,
@@ -532,13 +590,7 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
   }
 
   void _handleEdit(BuildContext context, WidgetRef ref, Byte byte) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ByteCreateScreen(),
-        // TODO: Pass byte data to edit mode when edit functionality is implemented
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const ByteCreateScreen()));
   }
 
   void _handleDelete(BuildContext context, WidgetRef ref, Byte byte) async {
@@ -547,49 +599,31 @@ class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
       if (success) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Byte deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Byte deleted successfully'), backgroundColor: Colors.green),
         );
-        // Refresh feed
         ref.read(bytesFeedProvider.notifier).refreshBytes();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete byte'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('Failed to delete byte'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
   void _handleToggleHide(BuildContext context, WidgetRef ref, Byte byte) {
-    // TODO: Implement hide/unhide functionality
-    // This requires adding is_hidden field to bytes table and updating providers
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hide functionality coming soon'),
-        backgroundColor: Colors.orange,
-      ),
+      const SnackBar(content: Text('Hide functionality coming soon'), backgroundColor: Colors.orange),
     );
   }
 
-  void _handleShare(BuildContext context, Byte byte) {
-    // Share functionality - uses default from ContentActionMenu (copy link)
-  }
+  void _handleShare(BuildContext context, Byte byte) {}
 
   String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    } else if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
     return count.toString();
   }
 }
-
 
 // ── Reusable right-side action column item ────────────────────────────────────
 class _SideActionItem extends StatelessWidget {
@@ -620,9 +654,7 @@ class _SideActionItem extends StatelessWidget {
         if (label.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(label, style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700,
             shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
           )),
         ],
@@ -644,22 +676,11 @@ class ShareModal extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 4,
+            width: 40, height: 4,
             margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2)),
           ),
-          const Text(
-            'Share',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          const Text('Share', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           ListTile(
             leading: const Icon(Icons.link, color: Colors.white),
@@ -667,11 +688,7 @@ class ShareModal extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Link copied to clipboard!'),
-                  backgroundColor: Colors.blue,
-                  duration: Duration(seconds: 2),
-                ),
+                const SnackBar(content: Text('Link copied to clipboard!'), backgroundColor: Colors.blue, duration: Duration(seconds: 2)),
               );
             },
           ),
@@ -705,22 +722,11 @@ class MoreOptionsModal extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 4,
+            width: 40, height: 4,
             margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2)),
           ),
-          const Text(
-            'More Options',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          const Text('More Options', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           ListTile(
             leading: const Icon(Icons.bookmark_outline, color: Colors.white),
