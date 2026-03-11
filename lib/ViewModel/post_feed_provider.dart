@@ -347,6 +347,16 @@ class PostFeedNotifier extends StateNotifier<PostFeedState> {
     await loadPosts();
   }
 
+  // ── Inject external posts (e.g. from TaikenLearningPage) ─────────────────
+  // Merges posts into state so PostCard can find them for likes/comments.
+  // Posts already present (same post_id) are not duplicated.
+  void injectPosts(List<Post_feed> posts) {
+    final existingIds = state.posts.map((p) => p.post_id).toSet();
+    final newOnes = posts.where((p) => !existingIds.contains(p.post_id)).toList();
+    if (newOnes.isEmpty) return;
+    state = state.copyWith(posts: [...state.posts, ...newOnes]);
+  }
+
   // ── Direct fallback: fetches from post table when RPC returns empty ─────────
   // Used when pearl_content_recommendations hasn't been seeded yet
   // (new user, recommendation pipeline still warming up).

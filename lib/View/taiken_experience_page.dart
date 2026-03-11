@@ -58,6 +58,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../Model/taiken.dart';
 import '../ViewModel/taiken_experience_provider.dart';
+import 'taiken_learning_page.dart';
 import '../ViewModel/streakandpoints_provider.dart';
 import 'widgets/streak_widgets.dart';
 
@@ -1075,7 +1076,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => _LearningPageStub(
+                          builder: (_) => TaikenLearningPage(
+                            taikenId: widget.taikenId,
                             domain: domain,
                             onDone: () => ref
                                 .read(taikenExperienceProvider(widget.taikenId)
@@ -1880,79 +1882,4 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
               fontSize: 15, fontWeight: FontWeight.bold)),
     ),
   );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Learning page stub  (Phase C)
-// Once TaikenLearningPage is built in its own file, replace this with a
-// proper import and remove this class.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _LearningPageStub extends StatelessWidget {
-  final String domain;
-  final VoidCallback onDone;
-  const _LearningPageStub({required this.domain, required this.onDone});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Text('Study: $domain'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.school_rounded,
-                  color: Colors.orange, size: 36),
-            ),
-            const SizedBox(height: 22),
-            Text('Studying: $domain',
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 20,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            Text(
-              'Replace this stub with TaikenLearningPage once the '
-                  'learning feed provider is ready. The gate flow is '
-                  'fully wired end-to-end right now.',
-              style: TextStyle(
-                  color: Colors.grey[500], fontSize: 13, height: 1.5),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 36),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  onDone();
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Return to Mission →',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
 }

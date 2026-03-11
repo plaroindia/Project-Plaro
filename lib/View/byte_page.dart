@@ -23,6 +23,7 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
   VideoPlayerController? _videoController;
 
   String? _selectedDomain;
+  String? _selectedSubdomain;
   List<String> _tags = [];
 
   @override
@@ -240,6 +241,77 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
                 onChanged: (String? value) {
                   setState(() {
                     _selectedDomain = value;
+                    _selectedSubdomain = null;
+                  });
+                  if (value != null) {
+                    ref.read(byteCreateProvider.notifier).updateDomain(value);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Subdomain Dropdown Widget
+  Widget _buildSubdomainDropdown() {
+    if (_selectedDomain == null) return const SizedBox();
+
+    final subdomains = DomainConstants.subdomains[_selectedDomain] ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: const Text(
+              'Subdomain',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedSubdomain,
+                hint: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Select subdomain (optional)',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                dropdownColor: Colors.grey[850],
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                items: subdomains.map((sub) {
+                  return DropdownMenuItem<String>(
+                    value: sub['value'],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        sub['label']!,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSubdomain = value;
                   });
                   if (value != null) {
                     ref.read(byteCreateProvider.notifier).updateDomain(value);
@@ -627,6 +699,7 @@ class _ByteCreateScreenState extends ConsumerState<ByteCreateScreen> {
               ),
 
             _buildDomainDropdown(),
+            _buildSubdomainDropdown(),
 
             // Caption Input
             Container(

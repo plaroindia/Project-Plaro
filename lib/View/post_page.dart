@@ -30,7 +30,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
 
   final SupabaseClient _supabase = Supabase.instance.client;
   String? _selectedDomain;
-
+  String? _selectedSubdomain;
 
   bool _isExpanded = false;
   List<String> _tags = [];
@@ -266,6 +266,77 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
                 onChanged: (String? value) {
                   setState(() {
                     _selectedDomain = value;
+                    _selectedSubdomain = null;
+                  });
+                  if (value != null) {
+                    ref.read(postCreateProvider.notifier).updateDomain(value);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Subdomain Dropdown Widget
+  Widget _buildSubdomainDropdown() {
+    if (_selectedDomain == null) return const SizedBox();
+
+    final subdomains = DomainConstants.subdomains[_selectedDomain] ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text(
+              'Subdomain',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _selectedSubdomain,
+                hint: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'Select subdomain (optional)',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                dropdownColor: Colors.grey[850],
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                items: subdomains.map((sub) {
+                  return DropdownMenuItem<String>(
+                    value: sub['value'],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        sub['label']!,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSubdomain = value;
                   });
                   if (value != null) {
                     ref.read(postCreateProvider.notifier).updateDomain(value);
@@ -507,6 +578,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
             ),
 
             _buildDomainDropdown(),
+            _buildSubdomainDropdown(),
 
             // Title Input
             Container(
