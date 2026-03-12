@@ -162,6 +162,11 @@ class Taiken {
   /// Null = no domain gate, always accessible.
   final Map<String, dynamic>? domainUnlockRequirement;
 
+  /// Default background music cue for the whole Taiken ('ambient','study','focus').
+  /// Individual stages can override this with their own musicCue.
+  /// Null = no music.
+  final String? defaultMusicCue;
+
   const Taiken({
     required this.taikenId,
     required this.creatorId,
@@ -185,6 +190,7 @@ class Taiken {
     this.seriesId,
     this.episodeNumber,
     this.domainUnlockRequirement,
+    this.defaultMusicCue,
   });
 
   factory Taiken.fromJson(Map<String, dynamic> json) => Taiken(
@@ -211,6 +217,7 @@ class Taiken {
     episodeNumber:       (json['episode_number'] as num?)?.toInt(),
     domainUnlockRequirement:
     json['domain_unlock_requirement'] as Map<String, dynamic>?,
+    defaultMusicCue:     json['default_music_cue'] as String?,
   );
 
   Taiken copyWith({
@@ -232,6 +239,7 @@ class Taiken {
     String? seriesId,
     int? episodeNumber,
     Map<String, dynamic>? domainUnlockRequirement,
+    String? defaultMusicCue,
   }) =>
       Taiken(
         taikenId:               taikenId,
@@ -256,6 +264,7 @@ class Taiken {
         seriesId:               seriesId            ?? this.seriesId,
         episodeNumber:          episodeNumber       ?? this.episodeNumber,
         domainUnlockRequirement: domainUnlockRequirement ?? this.domainUnlockRequirement,
+        defaultMusicCue:        defaultMusicCue     ?? this.defaultMusicCue,
       );
 
   /// True when this Taiken is part of a series.
@@ -324,6 +333,10 @@ class TaikenStage {
   final String? musicCue;
   final StageType stageType;
 
+  /// Predefined bundle background key (e.g. 'classroom').
+  /// Null = no preset; use backgroundImageUrl or solid fallback colour.
+  final String? backgroundKey;
+
   final DateTime createdAt;
 
   const TaikenStage({
@@ -336,6 +349,7 @@ class TaikenStage {
     this.mood = StageMood.neutral,
     this.musicCue,
     this.stageType = StageType.mixed,
+    this.backgroundKey,
     required this.createdAt,
   });
 
@@ -349,12 +363,28 @@ class TaikenStage {
     mood:               StageMood.fromString(json['mood'] as String?),
     musicCue:           json['music_cue'] as String?,
     stageType:          StageType.fromString(json['stage_type'] as String?),
+    backgroundKey:      json['background_key'] as String?,
     createdAt:          DateTime.parse(json['created_at'] as String),
   );
 
-  /// Returns the best available background image URL.
+  /// Returns the best available background image URL (network).
   /// Prefers the new backgroundImageUrl, falls back to legacy sceneImageUrl.
   String? get effectiveBackgroundUrl => backgroundImageUrl ?? sceneImageUrl;
+
+  /// Local bundle asset path for preset backgrounds.
+  /// Only non-null when there is NO network URL (URL always wins).
+  ///
+  /// Files live at:  assets/taiken/backgrounds/<key>.jpg
+  /// pubspec entry:  - assets/taiken/backgrounds/
+  String? get backgroundAssetPath {
+    if (effectiveBackgroundUrl != null) return null;
+    if (backgroundKey == null) return null;
+    return 'assets/taiken/backgrounds/$backgroundKey.jpg';
+  }
+
+  /// True when any background is available (URL or bundle asset).
+  bool get hasBackground =>
+      effectiveBackgroundUrl != null || backgroundKey != null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -384,6 +414,10 @@ class TaikenCharacter {
   /// True = this is the "You" / player character.
   final bool isPlayer;
 
+  /// Predefined character asset key (e.g. 'alex', 'maya').
+  /// Used to resolve bundle PNG when no upload URL exists.
+  final String? assetKey;
+
   final DateTime createdAt;
 
   const TaikenCharacter({
@@ -397,6 +431,7 @@ class TaikenCharacter {
     this.portraitUrlTalking,
     this.portraitSide = PortraitSide.left,
     this.isPlayer = false,
+    this.assetKey,
     required this.createdAt,
   });
 
@@ -413,6 +448,7 @@ class TaikenCharacter {
         portraitSide:       PortraitSide.fromString(
             json['portrait_side'] as String?),
         isPlayer:           json['is_player'] as bool? ?? false,
+        assetKey:           json['asset_key'] as String?,
         createdAt:          DateTime.parse(json['created_at'] as String),
       );
 
@@ -420,8 +456,21 @@ class TaikenCharacter {
   String? get effectivePortraitUrl => portraitUrl ?? characterImageUrl;
 
   /// Portrait URL to show when this character is actively speaking.
+  /// NOTE: there is NO separate bundle asset for talking — the experience page
+  /// uses AnimatedScale + AnimatedOpacity on the same image to indicate speaking.
   String? get effectiveTalkingPortraitUrl =>
       portraitUrlTalking ?? portraitUrl ?? characterImageUrl;
+
+  /// Local bundle asset path for the idle portrait.
+  /// Only non-null when there is NO network URL (URL always wins).
+  ///
+  /// Files live at:  assets/taiken/characters/<key>.png
+  /// pubspec entry:  - assets/taiken/characters/
+  String? get characterAssetPath {
+    if (effectivePortraitUrl != null) return null;
+    if (assetKey == null) return null;
+    return 'assets/taiken/characters/$assetKey.png';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -755,6 +804,3 @@ class TaikenGateInteraction {
     }
   }
 }
-
-
-

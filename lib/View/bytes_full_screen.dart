@@ -29,7 +29,8 @@ class BytesFullScreen extends ConsumerStatefulWidget {
   ConsumerState<BytesFullScreen> createState() => _BytesFullScreenState();
 }
 
-class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
+class _BytesFullScreenState extends ConsumerState<BytesFullScreen>
+    with WidgetsBindingObserver {
   late PageController _pageController;
   int _currentIndex = 0;
   final Map<int, VideoPlayerController> _controllers = {};
@@ -39,10 +40,13 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
 
   // ── Sequential init timer (prevents simultaneous HEVC decoder racing) ──────
   Timer? _preloadTimer;
+  bool _isInitializing = false; // lock: only one decoder inits at a time
+  bool _isPageVisible = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,11 +59,49 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _preloadTimer?.cancel();
-    _flushDwell(_currentIndex); // ✅ flush on exit
+    _controllers[_currentIndex]?.pause(); // ✅ stop audio before dispose
     _pageController.dispose();
     _disposeAllControllers();
+    // NOTE: Do NOT call _flushDwell here — ref is invalid during dispose()
+    // in ConsumerStatefulWidget. Dwell is flushed on every page change and
+    // when the route goes inactive (didChangeDependencies).
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isVisible = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_isPageVisible && !isVisible) {
+      _controllers[_currentIndex]?.pause();
+      _flushDwell(_currentIndex); // safe: ref is still valid here
+    } else if (!_isPageVisible && isVisible) {
+      final controller = _controllers[_currentIndex];
+      if (controller != null &&
+          controller.value.isInitialized &&
+          !controller.value.isPlaying) {
+        controller.play();
+      }
+    }
+    _isPageVisible = isVisible;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _controllers[_currentIndex]?.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      final controller = _controllers[_currentIndex];
+      if (controller != null &&
+          controller.value.isInitialized &&
+          !controller.value.isPlaying) {
+        controller.play();
+      }
+    }
   }
 
   void _recordPageEntry() {
@@ -70,7 +112,9 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
     final enteredAt = _pageEnteredAt;
     if (enteredAt == null) return;
     final dwellSeconds = DateTime.now().difference(enteredAt).inSeconds;
+    _pageEnteredAt = null; // clear so it's never double-flushed
     if (dwellSeconds < 1 || index >= widget.bytes.length) return;
+
     final byte = widget.bytes[index];
     final userId = ref.read(authStateProvider).valueOrNull?.user.id;
     if (userId == null) return;
@@ -80,7 +124,6 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
       contentIdInt: int.tryParse(byte.byteId),
       dwellTimeSeconds: dwellSeconds,
     );
-    _pageEnteredAt = null;
   }
 
   void _trackView(int index) {
@@ -128,6 +171,13 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
       }
       return;
     }
+
+    if (_isInitializing) {
+      debugPrint('⏳ Already initializing, skipping index $index');
+      return;
+    }
+
+    _isInitializing = true;
     debugPrint('🎥 Initializing controller for index $index');
     try {
       await controller.initialize();
@@ -141,6 +191,8 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
       }
     } catch (e) {
       debugPrint('❌ Error initializing video at $index: $e');
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -162,6 +214,20 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
     });
   }
 
+  /// Disposes controllers that are not the current or next index.
+  /// On MediaTek chips, keeping even 3 decoders alive simultaneously
+  /// exhausts ImageReader buffer slots — so we keep at most 2.
+  void _pruneControllers(int currentIndex) {
+    final toRemove = _controllers.keys
+        .where((i) => i != currentIndex && i != currentIndex + 1)
+        .toList();
+    for (final i in toRemove) {
+      debugPrint('🗑️ Disposing controller for index $i (pruned from $currentIndex)');
+      _controllers[i]?.dispose();
+      _controllers.remove(i);
+    }
+  }
+
   void _onPageChanged(int index) {
     debugPrint('🔄 Page changed from $_currentIndex to $index');
 
@@ -179,6 +245,13 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
     setState(() {
       _currentIndex = index;
     });
+
+    // ── Dispose controllers that are now too far away ─────
+    _pruneControllers(index);
+
+    // Reset init lock and cancel preload — current page must always be able to init
+    _preloadTimer?.cancel();
+    _isInitializing = false;
 
     _trackView(index); // ✅ track view for new page
     _recordPageEntry();
@@ -262,7 +335,10 @@ class _BytesFullScreenState extends ConsumerState<BytesFullScreen> {
             left: 8,
             child: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                _controllers[_currentIndex]?.pause();
+                Navigator.pop(context);
+              },
             ),
           ),
         ],
@@ -327,6 +403,17 @@ class ByteVideoPlayer extends ConsumerStatefulWidget {
 }
 
 class _ByteVideoPlayerState extends ConsumerState<ByteVideoPlayer> {
+  @override
+  void didUpdateWidget(ByteVideoPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isCurrentVideo && oldWidget.isCurrentVideo) {
+      if (widget.controller.value.isInitialized &&
+          widget.controller.value.isPlaying) {
+        widget.controller.pause();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);

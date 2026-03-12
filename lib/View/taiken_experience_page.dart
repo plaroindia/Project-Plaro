@@ -48,11 +48,13 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -119,6 +121,11 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
   int?  _selectedAnswer;
   bool  _showExplanation = false;
 
+  /// Shuffled display order for the current question's options.
+  /// _shuffledOptions[displayIndex] = originalIndex
+  /// Rebuilt each time we enter a new question.
+  List<int> _shuffledOptions = [];
+
   // ── Gate countdown ────────────────────────────────────────────────────────
   int   _gateCountdown     = 5;
   bool  _gateSkipUnlocked  = false;
@@ -142,6 +149,11 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
   // ── Share card key ────────────────────────────────────────────────────────
   final GlobalKey _shareKey = GlobalKey();
 
+  // ── Background music ──────────────────────────────────────────────────────
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  String? _currentCue; // tracks which cue is loaded to avoid redundant seeks
+  late final AppLifecycleListener _lifecycleListener;
+
   // ─────────────────────────────────────────────────────────────────────────
   // Lifecycle
   // ─────────────────────────────────────────────────────────────────────────
@@ -163,9 +175,74 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
         vsync: this, duration: const Duration(milliseconds: 1200));
     _scoreAnim = CurvedAnimation(parent: _scoreCtrl, curve: Curves.easeOut);
 
+    _lifecycleListener = AppLifecycleListener(
+      onHide:   () => _audioPlayer.pause(),
+      onPause:  () => _audioPlayer.pause(),
+      onResume: () { if (_currentCue != null) _audioPlayer.play(); },
+      onShow:   () { if (_currentCue != null) _audioPlayer.play(); },
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(taikenExperienceProvider(widget.taikenId).notifier)
-          .loadTaiken();
+      final notifier = ref.read(
+          taikenExperienceProvider(widget.taikenId).notifier);
+      // Register audio callback BEFORE loadTaiken so that the audio event
+      // fired at the end of loadTaiken() is guaranteed to reach the handler.
+      notifier.registerAudioCallback(_handleAudioEvent);
+      notifier.loadTaiken();
+    });
+  }
+
+  // ── Audio ─────────────────────────────────────────────────────────────────
+
+  /// Called by the provider on every phase / stage transition.
+  ///
+  /// [event]    — 'dialogue' | 'stage_change' | 'question' | 'outro'
+  /// [stageCue] — the current stage's musicCue override (may be null)
+  ///
+  /// Priority: stage cue → taiken default cue → silence.
+  /// Files live at: assets/taiken/music/<cue>.mp3
+  void _handleAudioEvent(String event, String? stageCue) {
+    if (!mounted) return;
+
+    if (event == 'outro') {
+      _audioPlayer.stop();
+      _currentCue = null;   // clear so re-entry replays the track
+      return;
+    }
+
+    // Resolve which cue to play.
+    final taiken      = ref.read(taikenExperienceProvider(widget.taikenId)).taiken;
+    final effectiveCue = stageCue ?? taiken?.defaultMusicCue;
+
+    if (effectiveCue == null) {
+      // No music configured — ensure player is silent.
+      _audioPlayer.stop();
+      _currentCue = null;
+      return;
+    }
+
+    if (event == 'question') {
+      // Fade out during questions to keep focus.
+      _audioPlayer.setVolume(0.05);
+      return;
+    }
+
+    // Restore full volume for dialogue / stage_change events.
+    _audioPlayer.setVolume(0.13);
+
+    // Only reload if the cue has actually changed.
+    // We also guard against the case where the player was stopped (outro/dispose)
+    // and then the same cue needs to restart — _currentCue being null handles that.
+    if (effectiveCue == _currentCue) return;
+    _currentCue = effectiveCue;
+
+    _audioPlayer
+        .setAsset('assets/taiken/music/$effectiveCue.mp3')
+        .then((_) {
+      _audioPlayer.setLoopMode(LoopMode.one);
+      _audioPlayer.play();
+    }).catchError((e) {
+      debugPrint('[TaikenAudio] failed to load cue "$effectiveCue": $e');
     });
   }
 
@@ -177,6 +254,8 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     _titleCtrl.dispose();
     _xpCtrl.dispose();
     _scoreCtrl.dispose();
+    _lifecycleListener.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -200,7 +279,14 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     }
 
     if (toQuestion) {
-      setState(() { _selectedAnswer = null; _showExplanation = false; });
+      final q = next.currentQuestion;
+      final count = q?.options.length ?? 0;
+      final order = List<int>.generate(count, (i) => i)..shuffle(Random());
+      setState(() {
+        _selectedAnswer   = null;
+        _showExplanation  = false;
+        _shuffledOptions  = order;
+      });
     }
 
     if (toGate) {
@@ -538,9 +624,14 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                         CircleAvatar(
                           radius: 22,
                           backgroundImage: c.effectivePortraitUrl != null
-                              ? NetworkImage(c.effectivePortraitUrl!) : null,
+                              ? NetworkImage(c.effectivePortraitUrl!)
+                              : c.characterAssetPath != null
+                              ? AssetImage(c.characterAssetPath!)
+                          as ImageProvider
+                              : null,
                           backgroundColor: Colors.grey[800],
-                          child: c.effectivePortraitUrl == null
+                          child: c.effectivePortraitUrl == null &&
+                              c.characterAssetPath == null
                               ? Text(c.characterName[0],
                               style: const TextStyle(
                                   color: Colors.white, fontSize: 16))
@@ -683,24 +774,52 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
   }
 
   Widget _background(TaikenStage? stage) {
-    final url = stage?.effectiveBackgroundUrl;
-    if (url == null) {
+    final url       = stage?.effectiveBackgroundUrl;
+    final assetPath = stage?.backgroundAssetPath;
+
+    if (url == null && assetPath == null) {
       return Positioned.fill(child: Container(color: const Color(0xFF0D0D0D)));
     }
+
+    // Build the two layers (blurred fill + sharp centred overlay) using
+    // whichever source is available — network URL takes priority over asset.
+    Widget bgImage(BoxFit fit) => url != null
+        ? Image.network(url,
+        fit: fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) =>
+            Container(color: const Color(0xFF0D0D0D)))
+        : Image.asset(assetPath!,
+        fit: fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) =>
+            Container(color: const Color(0xFF0D0D0D)));
+
+    Widget sharpImage() => url != null
+        ? Image.network(url,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const SizedBox())
+        : Image.asset(assetPath!,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const SizedBox());
+
     return Positioned.fill(
       child: Stack(children: [
-        Image.network(url,
-            fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-            errorBuilder: (_, __, ___) =>
-                Container(color: const Color(0xFF0D0D0D))),
+        bgImage(BoxFit.cover),
         BackdropFilter(
           filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: Container(color: Colors.black.withOpacity(0.3)),
         ),
-        Center(
-          child: Image.network(url,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const SizedBox()),
+        // Sharp scene image anchored to the top ~45 % of the screen so that
+        // the bottom half is clear for the dialogue panel.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: MediaQuery.of(context).size.height * 0.58,
+          child: sharpImage(),
         ),
       ]),
     );
@@ -720,9 +839,13 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     Widget portrait(TaikenCharacter c, {required bool isLeft}) {
       if (c.characterId == '__none__') return const SizedBox();
       final isSpeaking = speaker?.characterId == c.characterId;
-      final url = isSpeaking
+      // URL to show: talking URL (if uploaded) when speaking, idle otherwise.
+      // Falls back to the idle asset path when no URL exists at all.
+      final url       = isSpeaking
           ? c.effectiveTalkingPortraitUrl
           : c.effectivePortraitUrl;
+      final assetPath = c.characterAssetPath; // null when a URL is available
+
       return AnimatedOpacity(
         duration: const Duration(milliseconds: 280),
         opacity: isSpeaking ? 1.0 : 0.42,
@@ -734,6 +857,16 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
             width: 140, height: 260,
             child: url != null
                 ? Image.network(url,
+                key: ValueKey(url),
+                fit: BoxFit.contain,
+                alignment: Alignment.bottomCenter,
+                errorBuilder: (_, __, ___) => assetPath != null
+                    ? Image.asset(assetPath,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomCenter)
+                    : _portraitFallback(c))
+                : assetPath != null
+                ? Image.asset(assetPath,
                 fit: BoxFit.contain,
                 alignment: Alignment.bottomCenter,
                 errorBuilder: (_, __, ___) => _portraitFallback(c))
@@ -743,8 +876,17 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
       );
     }
 
+    // Characters sit at the bottom edge of the scene image.
+    // The scene image occupies the top 58% of the screen height.
+    // We position portraits so their feet land at the scene bottom,
+    // accounting for the portrait height (260) so they sit *inside* the scene.
+    final screenH       = MediaQuery.of(context).size.height;
+    final sceneBottom   = screenH * (1.0 - 0.58); // distance from screen-bottom to scene-bottom
+    final portraitBottom = sceneBottom + 180;       // slight overlap so feet touch the floor
+
     return Positioned(
-      left: 0, right: 0, bottom: 210,
+      left: 0, right: 0,
+      bottom: portraitBottom,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -794,7 +936,7 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
       List<TaikenDialogue> dialogues, bool allDone, StageMood mood) {
     return Container(
       constraints:
-      BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.40),
+      BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.53),
       margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.84),
@@ -861,9 +1003,13 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
             CircleAvatar(
               radius: 13,
               backgroundImage: char.effectivePortraitUrl != null
-                  ? NetworkImage(char.effectivePortraitUrl!) : null,
+                  ? NetworkImage(char.effectivePortraitUrl!)
+                  : char.characterAssetPath != null
+                  ? AssetImage(char.characterAssetPath!) as ImageProvider
+                  : null,
               backgroundColor: Colors.grey[700],
-              child: char.effectivePortraitUrl == null
+              child: char.effectivePortraitUrl == null &&
+                  char.characterAssetPath == null
                   ? Text(char.characterName.isEmpty ? '?' : char.characterName[0],
                   style: const TextStyle(fontSize: 9, color: Colors.white))
                   : null,
@@ -920,9 +1066,13 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
             CircleAvatar(
               radius: 13,
               backgroundImage: char.effectivePortraitUrl != null
-                  ? NetworkImage(char.effectivePortraitUrl!) : null,
+                  ? NetworkImage(char.effectivePortraitUrl!)
+                  : char.characterAssetPath != null
+                  ? AssetImage(char.characterAssetPath!) as ImageProvider
+                  : null,
               backgroundColor: Colors.grey[700],
-              child: char.effectivePortraitUrl == null
+              child: char.effectivePortraitUrl == null &&
+                  char.characterAssetPath == null
                   ? Text(char.characterName.isEmpty ? '?' : char.characterName[0],
                   style: const TextStyle(fontSize: 9, color: Colors.white))
                   : null,
@@ -1003,10 +1153,19 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(children: [
-        if (s.currentStage?.effectiveBackgroundUrl != null)
+        if (s.currentStage?.effectiveBackgroundUrl != null ||
+            s.currentStage?.backgroundAssetPath != null)
           Positioned.fill(
             child: Stack(children: [
-              Image.network(s.currentStage!.effectiveBackgroundUrl!,
+              s.currentStage!.effectiveBackgroundUrl != null
+                  ? Image.network(
+                  s.currentStage!.effectiveBackgroundUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity, height: double.infinity,
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: Colors.grey[900]))
+                  : Image.asset(
+                  s.currentStage!.backgroundAssetPath!,
                   fit: BoxFit.cover,
                   width: double.infinity, height: double.infinity,
                   errorBuilder: (_, __, ___) =>
@@ -1234,9 +1393,18 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Options
-                    ...List.generate(question.options.length,
-                            (i) => _optionTile(question, i, s, mood)),
+                    // Options — iterate over display indices (0..n-1);
+                    // _shuffledOptions maps display → original index.
+                    // Falls back to identity order if shuffle map isn't ready.
+                    ...() {
+                      final count = question.options.length;
+                      final order = _shuffledOptions.length == count
+                          ? _shuffledOptions
+                          : List<int>.generate(count, (i) => i);
+                      return List.generate(count, (displayIdx) =>
+                          _optionTile(question, displayIdx, order[displayIdx],
+                              s, mood));
+                    }(),
                     // Explanation
                     if (_showExplanation && question.explanation != null) ...[
                       const SizedBox(height: 12),
@@ -1315,10 +1483,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
     );
   }
 
-  Widget _optionTile(TaikenQuestion q, int i,
+  Widget _optionTile(TaikenQuestion q, int displayIdx, int originalIdx,
       TaikenExperienceState s, StageMood mood) {
-    final isSelected = _selectedAnswer == i;
-    final isCorrect  = i == q.correctOptionIndex;
+    final isSelected = _selectedAnswer == displayIdx;
+    final isCorrect  = originalIdx == q.correctOptionIndex;
     final answered   = _selectedAnswer != null;
 
     Color bg, border, text;
@@ -1350,10 +1518,10 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         onTap: answered ? null : () async {
-          setState(() { _selectedAnswer = i; _showExplanation = true; });
+          setState(() { _selectedAnswer = displayIdx; _showExplanation = true; });
           await ref
               .read(taikenExperienceProvider(widget.taikenId).notifier)
-              .submitAnswer(q.questionId, i);
+              .submitAnswer(q.questionId, originalIdx);
           _updateXP(ref.read(taikenExperienceProvider(widget.taikenId)));
         },
         borderRadius: BorderRadius.circular(12),
@@ -1367,7 +1535,7 @@ class _TaikenExperiencePageState extends ConsumerState<TaikenExperiencePage>
           ),
           child: Row(children: [
             Expanded(
-              child: Text(q.options[i],
+              child: Text(q.options[originalIdx],
                   style: TextStyle(
                       color: text, fontSize: 15,
                       fontWeight: FontWeight.w500)),

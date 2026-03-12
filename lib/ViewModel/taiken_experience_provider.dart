@@ -1,7 +1,7 @@
 // =============================================================================
 // taiken_experience_provider.dart  — PHASE A REWRITE
 //
-// What changed from the old version:
+// Changes from previous version:
 //   • TaikenExperienceState
 //       - Removed showingIntro / showingOutro booleans
 //       - Removed currentDialogueIndex (dialogue tracking now in the VN view)
@@ -24,6 +24,12 @@
 //       - resetAndRestart() fixed — uses delete then upsert RPC, no race condition
 //       - All phase transitions go through _setPhase() — single choke point,
 //         easy to debug
+//
+//   ★ AUDIO HOOKS:
+//       - onPhaseChange callback registered by TaikenExperiencePage
+//       - Every phase/stage transition notifies the callback so the audio
+//         service can react (fade out on questions, resume on dialogue,
+//         cross-fade on stage change, stop on outro).
 //
 //   STUB METHODS (will be fully implemented in Phase D):
 //       - _fetchEarnedBadge()
@@ -194,6 +200,28 @@ class TaikenExperienceNotifier
   final Ref _ref;
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // ── Audio callback ────────────────────────────────────────────────────────
+  // The TaikenExperiencePage registers this after initState so the audio
+  // service can react to every phase / stage change without being coupled
+  // to the provider directly.
+
+  /// Called on every meaningful phase or stage transition.
+  /// [event]    — one of: 'intro', 'dialogue', 'question', 'stage_change',
+  ///              'gate', 'outro'
+  /// [stageCue] — the effective music cue for the current stage (may be null)
+  void Function(String event, String? stageCue)? onAudioEvent;
+
+  /// Register the audio callback from the page layer.
+  void registerAudioCallback(
+      void Function(String event, String? stageCue) cb) {
+    onAudioEvent = cb;
+  }
+
+  void _fireAudio(String event) {
+    final cue = state.currentStage?.musicCue;
+    onAudioEvent?.call(event, cue);
+  }
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   Future<void> loadTaiken() async {
@@ -287,7 +315,7 @@ class TaikenExperienceNotifier
         userId: userId,
         contentType: 'taiken',
         contentIdUuid: taikenId,
-        source: 'browse',
+        source: 'taiken_play',
       );
 
       // ── 8. Restore saved position ─────────────────────────────────────────
@@ -329,6 +357,28 @@ class TaikenExperienceNotifier
         isLoading:            false,
         clearError:           true,
       );
+
+      // ── Fire the initial audio event so music starts immediately after load.
+      // Map the restored phase to the correct event string.
+      // This is also called after resetAndRestart() since it re-calls loadTaiken().
+      switch (restoredPhase) {
+        case TaikenPhase.dialogue:
+          _fireAudio('dialogue');
+          break;
+        case TaikenPhase.question:
+          _fireAudio('question');
+          break;
+        case TaikenPhase.gateInterstitial:
+          _fireAudio('gate');
+          break;
+        case TaikenPhase.outro:
+          _fireAudio('outro');
+          break;
+        case TaikenPhase.intro:
+        // Intro screen has no background music — music starts when the user
+        // taps "Begin Story" which calls startExperience() → _fireAudio.
+          break;
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -348,6 +398,7 @@ class TaikenExperienceNotifier
   void startExperience() {
     _persistPhase(TaikenPhase.dialogue);
     _setPhase(TaikenPhase.dialogue);
+    _fireAudio('dialogue');
   }
 
   /// Called by the VN view when all dialogue bubbles have been shown and the
@@ -368,6 +419,7 @@ class TaikenExperienceNotifier
       _openGate(firstQuestion.questionId);
     } else {
       _setPhase(TaikenPhase.question);
+      _fireAudio('question');   // ★ fade out music
     }
   }
 
@@ -393,20 +445,12 @@ class TaikenExperienceNotifier
 
   // ── Gate actions ──────────────────────────────────────────────────────────
 
-  /// User tapped "Learn First" — logs 'studied', navigates to learning page.
-  /// The actual Navigator.push happens in the UI layer. This method just
-  /// records the action and marks the gate as interacted so it won't
-  /// re-trigger when the user returns.
   void studyGate() {
     final questionId = state.activeGateQuestionId;
     if (questionId == null) return;
 
     _logGateInteraction(questionId, GateAction.studied);
     _markGateInteracted(questionId);
-
-    // Phase stays as gateInterstitial — the UI will push TaikenLearningPage
-    // and the gate view will dismiss itself on pop.
-    // The provider will be in gateInterstitial until resumeFromGate() is called.
     debugPrint('[Taiken] gate: user studying for question $questionId');
   }
 
@@ -416,6 +460,7 @@ class TaikenExperienceNotifier
       phase: TaikenPhase.question,
       clearActiveGate: true,
     );
+    _fireAudio('question');   // ★ still in question phase after gate
     debugPrint('[Taiken] resumed from gate → question phase');
   }
 
@@ -436,6 +481,7 @@ class TaikenExperienceNotifier
       phase: TaikenPhase.question,
       clearActiveGate: true,
     );
+    _fireAudio('question');   // ★ still in question phase
     debugPrint('[Taiken] gate skipped (afterDelay=$afterDelay)');
   }
 
@@ -511,6 +557,7 @@ class TaikenExperienceNotifier
       if (newStatus == 'completed' || newStatus == 'failed') {
         if (newStatus == 'completed') _onTaikenComplete();
         _setPhase(TaikenPhase.outro);
+        _fireAudio('outro');   // ★ stop music
       }
       // NOTE: advanceToNextQuestion() is called by the UI AFTER showing
       // the answer feedback, not here. This lets the user read the explanation.
@@ -561,6 +608,7 @@ class TaikenExperienceNotifier
       phase:                TaikenPhase.dialogue,
     );
 
+    _fireAudio('stage_change');   // ★ cross-fade to new stage cue (or default)
     if (completedStage != null) _onStageComplete(completedStage);
     debugPrint('[Taiken] advanced to stage $nextStageIndex');
   }

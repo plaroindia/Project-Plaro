@@ -73,6 +73,11 @@ class TaikenCreateState {
   /// Minimum percentage correct to pass (0–100). Default 50.
   final int passThreshold;
 
+  /// Taiken-level default background music cue.
+  /// Individual stages override via StageData.musicCue.
+  /// Null = no music.
+  final String? defaultMusicCue;
+
   TaikenCreateState({
     this.title = '',
     this.description = '',
@@ -91,6 +96,7 @@ class TaikenCreateState {
     this.seriesId,
     this.episodeNumber,
     this.passThreshold = 50,
+    this.defaultMusicCue,
   });
 
   TaikenCreateState copyWith({
@@ -111,6 +117,8 @@ class TaikenCreateState {
     String? seriesId,
     int? episodeNumber,
     int? passThreshold,
+    String? defaultMusicCue,
+    bool clearDefaultMusicCue = false,
   }) {
     return TaikenCreateState(
       title:               title               ?? this.title,
@@ -130,6 +138,8 @@ class TaikenCreateState {
       seriesId:            seriesId            ?? this.seriesId,
       episodeNumber:       episodeNumber       ?? this.episodeNumber,
       passThreshold:       passThreshold       ?? this.passThreshold,
+      defaultMusicCue:     clearDefaultMusicCue
+          ? null : (defaultMusicCue ?? this.defaultMusicCue),
     );
   }
 }
@@ -142,39 +152,56 @@ class StageData {
   final XFile? sceneImage;
   final List<DialogueData> dialogues;
   final List<QuestionData> questions;
-
-  // ── NEW ───────────────────────────────────────────────────────────────────
   final StageMood mood;
   final StageType stageType;
+
+  /// Predefined background key (e.g. 'classroom', 'tech_lab').
+  /// When set and [sceneImage] is null, the experience page loads
+  /// assets/taiken/backgrounds/<backgroundKey>.png from the bundle.
+  final String? backgroundKey;
+
+  /// Optional music cue — stored in DB, not exposed in UI yet.
+  final String? musicCue;
 
   StageData({
     required this.tempId,
     required this.stageTitle,
     this.sceneImage,
-    this.dialogues = const [],
-    this.questions = const [],
-    this.mood      = StageMood.neutral,
-    this.stageType = StageType.mixed,
+    this.dialogues     = const [],
+    this.questions     = const [],
+    this.mood          = StageMood.neutral,
+    this.stageType     = StageType.mixed,
+    this.backgroundKey,
+    this.musicCue,
   });
 
   StageData copyWith({
     String? stageTitle,
     XFile? sceneImage,
+    bool clearSceneImage = false,
     List<DialogueData>? dialogues,
     List<QuestionData>? questions,
     StageMood? mood,
     StageType? stageType,
+    String? backgroundKey,
+    bool clearBackgroundKey = false,
+    String? musicCue,
   }) {
     return StageData(
-      tempId:    tempId,
-      stageTitle: stageTitle ?? this.stageTitle,
-      sceneImage: sceneImage ?? this.sceneImage,
-      dialogues:  dialogues  ?? this.dialogues,
-      questions:  questions  ?? this.questions,
-      mood:       mood       ?? this.mood,
-      stageType:  stageType  ?? this.stageType,
+      tempId:        tempId,
+      stageTitle:    stageTitle    ?? this.stageTitle,
+      sceneImage:    clearSceneImage ? null : (sceneImage ?? this.sceneImage),
+      dialogues:     dialogues     ?? this.dialogues,
+      questions:     questions     ?? this.questions,
+      mood:          mood          ?? this.mood,
+      stageType:     stageType     ?? this.stageType,
+      backgroundKey: clearBackgroundKey ? null : (backgroundKey ?? this.backgroundKey),
+      musicCue:      musicCue      ?? this.musicCue,
     );
   }
+
+  /// True if the stage has any background source.
+  bool get hasBackground => sceneImage != null || backgroundKey != null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,10 +301,14 @@ class CharacterData {
   final String characterName;
   final String? characterDescription;
   final XFile? characterImage;
-
-  // ── NEW ───────────────────────────────────────────────────────────────────
   final PortraitSide portraitSide;
   final bool isPlayer;
+
+  /// Predefined character key (e.g. 'alex', 'maya').
+  /// When set and [characterImage] is null, the UI loads
+  /// assets/taiken/characters/<assetKey>.png from the bundle.
+  /// Custom upload takes priority over the asset key.
+  final String? assetKey;
 
   CharacterData({
     required this.tempId,
@@ -286,24 +317,32 @@ class CharacterData {
     this.characterImage,
     this.portraitSide = PortraitSide.left,
     this.isPlayer     = false,
+    this.assetKey,
   });
 
   CharacterData copyWith({
     String? characterName,
     String? characterDescription,
     XFile? characterImage,
+    bool clearCharacterImage = false,
     PortraitSide? portraitSide,
     bool? isPlayer,
+    String? assetKey,
+    bool clearAssetKey = false,
   }) {
     return CharacterData(
       tempId:               tempId,
       characterName:        characterName        ?? this.characterName,
       characterDescription: characterDescription ?? this.characterDescription,
-      characterImage:       characterImage       ?? this.characterImage,
+      characterImage:       clearCharacterImage ? null : (characterImage ?? this.characterImage),
       portraitSide:         portraitSide         ?? this.portraitSide,
       isPlayer:             isPlayer             ?? this.isPlayer,
+      assetKey:             clearAssetKey ? null : (assetKey ?? this.assetKey),
     );
   }
+
+  /// True if the character has any image source.
+  bool get hasImage => characterImage != null || assetKey != null;
 }
 
 // =============================================================================
@@ -345,6 +384,8 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
   void updatePassThreshold(int v)         => state = state.copyWith(passThreshold: v);
   void updateSeriesId(String? v)          => state = state.copyWith(seriesId: v);
   void updateEpisodeNumber(int? v)        => state = state.copyWith(episodeNumber: v);
+  void updateDefaultMusicCue(String? v)   => state = state.copyWith(
+      defaultMusicCue: v, clearDefaultMusicCue: v == null);
 
   Future<void> pickThumbnail() async {
     try {
@@ -572,9 +613,9 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
         'is_published':         true,
         'created_at':           now,
         'updated_at':           now,
-        // ★ NEW — series fields (null-safe, ignored by DB if null)
-        if (state.seriesId     != null) 'series_id':      state.seriesId,
-        if (state.episodeNumber != null) 'episode_number': state.episodeNumber,
+        if (state.seriesId      != null) 'series_id':         state.seriesId,
+        if (state.episodeNumber != null) 'episode_number':    state.episodeNumber,
+        if (state.defaultMusicCue != null) 'default_music_cue': state.defaultMusicCue,
       });
 
       // ── Insert characters ─────────────────────────────────────────────────
@@ -597,8 +638,9 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
           'character_image_url':   imgUrl,
           'character_description': c.characterDescription,
           'display_order':         i,
-          'portrait_side':         c.portraitSide.name, // ★ NEW
-          'is_player':             c.isPlayer,           // ★ NEW
+          'portrait_side':         c.portraitSide.name,
+          'is_player':             c.isPlayer,
+          if (c.assetKey != null) 'asset_key': c.assetKey,
           'created_at':            now,
         });
       }
@@ -620,9 +662,11 @@ class TaikenCreateNotifier extends StateNotifier<TaikenCreateState> {
           'stage_order':          si + 1,
           'stage_title':          stage.stageTitle,
           'scene_image_url':      sceneUrl,
-          'background_image_url': sceneUrl,         // ★ NEW (same image)
-          'mood':                 stage.mood.name,  // ★ NEW
-          'stage_type':           stage.stageType.name, // ★ NEW
+          'background_image_url': sceneUrl,
+          'mood':                 stage.mood.name,
+          'stage_type':           stage.stageType.name,
+          if (stage.backgroundKey != null) 'background_key': stage.backgroundKey,
+          if (stage.musicCue      != null) 'music_cue':      stage.musicCue,
           'created_at':           now,
         });
 
