@@ -136,9 +136,11 @@ class TaikenAiNotifier extends StateNotifier<TaikenAiState> {
     final createState = _ref.read(taikenCreateProvider);
 
     // Remove all current characters first.
-    final currentCharCount = createState.characters.length;
+    // FIX #9 — iterate by re-reading length each time so we never hold
+    // a stale count while removeCharacter mutates the underlying list.
+    final currentCharCount = _ref.read(taikenCreateProvider).characters.length;
     for (int i = currentCharCount - 1; i >= 0; i--) {
-      notifier.removeCharacter(i);
+      notifier.removeCharacter(0); // always remove index 0 after the first is gone
     }
 
     // Add AI-generated characters.
